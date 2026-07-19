@@ -13,6 +13,10 @@
 - 业务逻辑、UI、边界场景和回归校验。
 - 共享消费者保护、回滚方案和 100 分量化验收。
 - 冲突扫描、报告生成和报告自动校验脚本。
+- 单一机器规范源，完整阶段与模式 Checklist 不再多处维护。
+- 有证据的 `N/A` 从适用满分中剔除并归一化到 100 分。
+- 运行时视觉硬门禁要求真实浏览器引擎版本、截图、CSSOM computed style 和几何测量，关键误差 `≤1 CSS px`。
+- 区分完整 `PASS` 与待运行时视觉验收的 `CODE_ONLY`，防止静态证据冒充视觉通过。
 
 固定优先级：
 
@@ -28,11 +32,13 @@ codex plugin marketplace add skeryb001-tech/migrate-feature-plugin
 codex plugin add migrate-feature-plugin@migrate-feature-marketplace
 ```
 
-安装后新建 Codex 任务并调用：
+安装后新建 Codex 任务。插件支持自然语言自动触发，例如：
 
 ```text
-$migrate-feature
+把 A 项目的图片上传功能迁移到 B 项目，保持逻辑和 UI 一致。
 ```
+
+也可以显式调用 `$migrate-feature`。
 
 ## 使用示例
 
@@ -84,11 +90,13 @@ python3 plugins/migrate-feature-plugin/skills/migrate-feature/scripts/createMigr
   --target /path/to/target-page \
   --output /tmp/migration-report.md
 
+python3 plugins/migrate-feature-plugin/skills/migrate-feature/scripts/validateMigrationSpec.py
+
 python3 plugins/migrate-feature-plugin/skills/migrate-feature/scripts/validateMigrationReport.py \
   /tmp/migration-report.md
 ```
 
-冲突扫描发现不同内容同名、大小写或路径类型冲突时返回非 0；报告校验在存在占位符、缺少证据、P0/P1、硬门禁失败或总分低于 95 时返回非 0。
+冲突扫描发现不同内容同名、大小写或路径类型冲突时返回非 0。报告由 `migrationSpec.py` 的单一规范生成；规范校验器会阻断重复 ID、非法门禁引用和评分权重漂移。报告校验器检查完整 Checklist、P0/P1、G0–G9、运行时视觉证据、N/A 归一化计算和 95 分合格线：退出码 0 为完整 PASS，1 为失败，3 为结构有效但运行时视觉待验收的 CODE_ONLY。
 
 ## 目录
 
@@ -100,4 +108,4 @@ plugins/migrate-feature-plugin/skills/migrate-feature/
 
 ## 版本
 
-当前版本：`1.1.0`
+当前版本：`1.2.0`

@@ -12,6 +12,7 @@ from pathlib import Path
 from migrationSpec import (
     GATES,
     MODES,
+    PLATFORMS,
     RUNTIME_VISUAL_CHECKLIST_IDS,
     RUNTIME_VISUAL_GATE_IDS,
     SCORE_ITEMS,
@@ -23,6 +24,7 @@ from migrationSpec import (
 
 REQUIRED_FIELDS = [
     "migration_mode",
+    "platform_mode",
     "source",
     "target",
     "source_baseline",
@@ -40,8 +42,10 @@ REQUIRED_FIELDS = [
     "p1_open",
     "accepted_p2",
     "runtime_visual_verified",
-    "runtime_visual_browser",
-    "runtime_visual_max_error_css_px",
+    "runtime_visual_surface",
+    "runtime_visual_environment",
+    "runtime_visual_unit",
+    "runtime_visual_max_error",
     "runtime_visual_evidence",
     "raw_score",
     "applicable_max_score",
@@ -184,15 +188,15 @@ def has_unverified_evidence(value: str) -> bool:
 
 
 def has_runtime_visual_evidence(value: str) -> bool:
-    """判断完整视觉证据是否包含实际渲染所需信息。"""
+    """判断完整视觉证据是否包含目标平台运行时信息。"""
 
     stripped = value.strip()
     if not has_valid_evidence(stripped) or stripped.upper().startswith("N/A"):
         return False
     required_patterns = (
-        r"\bbrowser\s*=",
+        r"\bruntime\s*=",
         r"\bscreenshots?\s*=",
-        r"\bcomputed_style\s*=",
+        r"\brendered_style\s*=",
         r"\bviewport\s*=",
         r"\bgeometry\s*=",
     )
@@ -202,8 +206,8 @@ def has_runtime_visual_evidence(value: str) -> bool:
     )
 
 
-def expected_checklist_texts(mode: str) -> dict[str, str]:
-    """返回指定模式的 Checklist 文本映射。"""
+def expected_checklist_texts(mode: str, platform: str) -> dict[str, str]:
+    """返回指定拓扑与平台的 Checklist 文本映射。"""
 
     result = {
         checklist_item["id"]: checklist_item["text"]
@@ -216,22 +220,29 @@ def expected_checklist_texts(mode: str) -> dict[str, str]:
             for checklist_item in MODES[mode]["checklist"]
         }
     )
+    result.update(
+        {
+            checklist_item["id"]: checklist_item["text"]
+            for checklist_item in PLATFORMS[platform]["checklist"]
+        }
+    )
     return result
 
 
 def validate_checklists(
     content: str,
     mode: str,
+    platform: str,
     is_code_only: bool,
     errors: list[str],
 ) -> None:
     """校验完整阶段与模式 Checklist。"""
 
-    if mode not in MODES:
+    if mode not in MODES or platform not in PLATFORMS:
         return
 
-    expected_ids = expected_checklist_ids(mode)
-    expected_texts = expected_checklist_texts(mode)
+    expected_ids = expected_checklist_ids(mode, platform)
+    expected_texts = expected_checklist_texts(mode, platform)
     rows: dict[str, tuple[bool, str]] = {}
     duplicates: set[str] = set()
 
@@ -291,6 +302,7 @@ def validate_fields(
     errors: list[str],
 ) -> tuple[
     str,
+    str,
     int | None,
     float | None,
     float | None,
@@ -318,6 +330,12 @@ def validate_fields(
         errors.append(f"migration_mode 非法：{mode!r}")
     elif f"## 4. {MODES[mode]['title']}" not in content:
         errors.append(f"缺少模式专项章节：{MODES[mode]['title']}")
+
+    platform = fields.get("platform_mode", "")
+    if platform not in PLATFORMS:
+        errors.append(f"platform_mode 非法：{platform!r}")
+    elif f"## 5. {PLATFORMS[platform]['title']}" not in content:
+        errors.append(f"缺少平台专项章节：{PLATFORMS[platform]['title']}")
 
     for field_name in ("source", "target"):
         value = fields.get(field_name, "").strip()
@@ -350,44 +368,80 @@ def validate_fields(
         runtime_visual_verified = None
         errors.append("runtime_visual_verified 必须为 YES 或 NO")
 
-    runtime_max_error_value = fields.get(
-        "runtime_visual_max_error_css_px",
+    runtime_surface = fields.get("runtime_visual_surface", "").strip().upper()
+    runtime_environment = fields.get(
+        "runtime_visual_environment",
         "",
     ).strip()
-    runtime_browser = fields.get("runtime_visual_browser", "").strip()
+    runtime_unit = fields.get("runtime_visual_unit", "").strip().upper()
+    runtime_max_error_value = fields.get("runtime_visual_max_error", "").strip()
     runtime_evidence = fields.get("runtime_visual_evidence", "").strip()
     if runtime_visual_verified is True:
-        if not re.search(
-            r"\b(?:Chrome|Chromium|Firefox|WebKit|Safari|Edge)\b.*\d",
-            runtime_browser,
-            flags=re.IGNORECASE,
-        ):
-            errors.append(
-                "runtime_visual_browser 必须记录真实浏览器引擎和版本"
-            )
+        if platform in PLATFORMS:
+            platform_spec = PLATFORMS[platform]
+            if runtime_surface not in platform_spec["runtime_surfaces"]:
+                allowed_surfaces = ", ".join(platform_spec["runtime_surfaces"])
+                errors.append(
+                    f"{platform} 的 runtime_visual_surface 必须为 {allowed_surfaces}"
+                )
+            if runtime_unit not in platform_spec["runtime_units"]:
+                allowed_units = ", ".join(platform_spec["runtime_units"])
+                errors.append(
+                    f"{platform} 的 runtime_visual_unit 必须为 {allowed_units}"
+                )
+            elif not any(
+                re.search(
+                    unit_pattern,
+                    runtime_environment,
+                    flags=re.IGNORECASE,
+                )
+                for unit_pattern in platform_spec["runtime_unit_patterns"][
+                    runtime_unit
+                ]
+            ):
+                errors.append(
+                    f"runtime_visual_unit={runtime_unit} 与运行环境/UI 框架不匹配"
+                )
+            for runtime_pattern in platform_spec["runtime_patterns"]:
+                if not re.search(
+                    runtime_pattern,
+                    runtime_environment,
+                    flags=re.IGNORECASE,
+                ):
+                    errors.append(
+                        f"runtime_visual_environment 不符合 {platform} 的真实运行环境要求"
+                    )
         runtime_max_error = parse_score(
             runtime_max_error_value,
-            "runtime_visual_max_error_css_px",
+            "runtime_visual_max_error",
             errors,
         )
         if runtime_max_error is not None and runtime_max_error > 1:
             errors.append(
-                "runtime_visual_max_error_css_px 必须小于等于 1 CSS px"
+                "runtime_visual_max_error 必须小于等于 1 逻辑显示单位"
             )
         if not has_runtime_visual_evidence(runtime_evidence):
             errors.append(
-                "runtime_visual_evidence 必须包含 browser、screenshot、computed_style、viewport 和 geometry 的浏览器渲染证据"
+                "runtime_visual_evidence 必须包含 runtime、screenshot、rendered_style、viewport 和 geometry 的目标平台渲染证据"
             )
         if conclusion != "PASS":
             errors.append("运行时视觉已验证时 final_conclusion 必须为 PASS")
     elif runtime_visual_verified is False:
-        if runtime_browser.upper() != "UNVERIFIED":
+        if runtime_surface != "UNVERIFIED":
             errors.append(
-                "运行时视觉未验证时 runtime_visual_browser 必须为 UNVERIFIED"
+                "运行时视觉未验证时 runtime_visual_surface 必须为 UNVERIFIED"
+            )
+        if runtime_environment.upper() != "UNVERIFIED":
+            errors.append(
+                "运行时视觉未验证时 runtime_visual_environment 必须为 UNVERIFIED"
+            )
+        if runtime_unit != "UNVERIFIED":
+            errors.append(
+                "运行时视觉未验证时 runtime_visual_unit 必须为 UNVERIFIED"
             )
         if runtime_max_error_value.upper() != "UNVERIFIED":
             errors.append(
-                "运行时视觉未验证时 runtime_visual_max_error_css_px 必须为 UNVERIFIED"
+                "运行时视觉未验证时 runtime_visual_max_error 必须为 UNVERIFIED"
             )
         if not has_unverified_evidence(runtime_evidence):
             errors.append(
@@ -421,6 +475,7 @@ def validate_fields(
         errors.append(f"存在未解决 P1：{p1_open}")
     return (
         mode,
+        platform,
         accepted_p2,
         raw_score,
         applicable_max,
@@ -637,6 +692,7 @@ def validate_report(content: str) -> tuple[list[str], bool]:
     fields = parse_fields(content)
     (
         mode,
+        platform,
         accepted_p2,
         raw_score,
         applicable_max,
@@ -645,7 +701,7 @@ def validate_report(content: str) -> tuple[list[str], bool]:
         runtime_visual_verified,
     ) = validate_fields(content, fields, errors)
     is_code_only = conclusion == "CODE_ONLY" and runtime_visual_verified is False
-    validate_checklists(content, mode, is_code_only, errors)
+    validate_checklists(content, mode, platform, is_code_only, errors)
     validate_gates(content, is_code_only, errors)
     validate_scores(
         content,

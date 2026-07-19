@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""校验前端功能迁移机器规范源的完整性。"""
+"""校验 Web 与客户端功能迁移机器规范源的完整性。"""
 
 from __future__ import annotations
 

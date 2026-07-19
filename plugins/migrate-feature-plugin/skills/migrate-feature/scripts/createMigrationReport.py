@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""从单一机器规范源创建前端功能迁移报告。"""
+"""从单一机器规范源创建 Web 与客户端功能迁移报告。"""
 
 from __future__ import annotations
 
@@ -8,20 +8,33 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from migrationSpec import GATES, MODES, SCORE_ITEMS, STAGES, specification_errors
+from migrationSpec import (
+    GATES,
+    MODES,
+    PLATFORMS,
+    SCORE_ITEMS,
+    STAGES,
+    specification_errors,
+)
 
 
 def parse_args() -> argparse.Namespace:
     """解析命令行参数。"""
 
     parser = argparse.ArgumentParser(
-        description="生成包含完整阶段与模式 Checklist 的迁移报告。"
+        description="生成包含完整阶段、迁移拓扑与平台 Checklist 的迁移报告。"
     )
     parser.add_argument(
         "--mode",
         required=True,
         choices=sorted(MODES),
         help="迁移模式",
+    )
+    parser.add_argument(
+        "--platform",
+        required=True,
+        choices=sorted(PLATFORMS),
+        help="目标运行平台",
     )
     parser.add_argument("--source", required=True, help="源项目、页面或功能路径")
     parser.add_argument("--target", required=True, help="目标项目、页面或功能路径")
@@ -95,19 +108,21 @@ def render_score_rows() -> str:
     )
 
 
-def build_report(mode: str, source: str, target: str) -> str:
+def build_report(mode: str, platform: str, source: str, target: str) -> str:
     """生成迁移报告正文。"""
 
     generated_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
     mode_spec = MODES[mode]
+    platform_spec = PLATFORMS[platform]
 
-    return f"""# 前端功能迁移报告
+    return f"""# Web 与客户端功能迁移报告
 
 本报告由单一机器规范源生成。逐项完成并保留证据；校验脚本返回 0 才是完整 PASS，返回 3 表示代码级完成但运行时视觉待验收。
 
 ## 0. 机器校验摘要
 
 - migration_mode: {mode}
+- platform_mode: {platform}
 - source: {source}
 - target: {target}
 - generated_at_utc: {generated_at}
@@ -126,15 +141,17 @@ def build_report(mode: str, source: str, target: str) -> str:
 - p1_open: TODO
 - accepted_p2: TODO
 - runtime_visual_verified: TODO
-- runtime_visual_browser: TODO
-- runtime_visual_max_error_css_px: TODO
+- runtime_visual_surface: TODO
+- runtime_visual_environment: TODO
+- runtime_visual_unit: TODO
+- runtime_visual_max_error: TODO
 - runtime_visual_evidence: TODO
 - raw_score: TODO
 - applicable_max_score: TODO
 - total_score: TODO
 - final_conclusion: TODO
 
-执行锚点：行为等价（parity）→ 目标复用 → 目标优先（target-first）→ 兼容时参考源命名。
+执行锚点：行为等价（parity）→ 目标复用 → 目标优先（target-first）→ 平台原生适配 → 兼容时参考源命名。
 
 ## 1. 范围与基线
 
@@ -146,13 +163,13 @@ def build_report(mode: str, source: str, target: str) -> str:
 | 目标运行入口 | TODO | TODO |
 | 允许修改范围 | TODO | TODO |
 
-## 2. 调用链、UI 与能力映射
+## 2. 调用链、UI、平台与能力映射
 
 | 编号 | 触发/状态 | 输入 | 核心处理 | 输出/副作用 | 源证据 | 目标证据 |
 | --- | --- | --- | --- | --- | --- | --- |
 | L1 | TODO | TODO | TODO | TODO | TODO | TODO |
 
-| 编号 | 视口/主题/语言 | UI 状态 | 关键结构与盒模型 | 交互 | 源证据 | 目标证据 |
+| 编号 | 运行环境/视口/主题/语言 | UI 状态 | 关键结构与几何 | 交互 | 源证据 | 目标证据 |
 | --- | --- | --- | --- | --- | --- | --- |
 | U1 | TODO | TODO | TODO | TODO | TODO | TODO |
 
@@ -170,23 +187,29 @@ def build_report(mode: str, source: str, target: str) -> str:
 
 专项证据：TODO
 
-## 5. 风险与差异
+## 5. {platform_spec['title']}
+
+{render_checklist(platform_spec['checklist'])}
+
+平台证据：TODO
+
+## 6. 风险与差异
 
 | 编号 | 等级 | 风险或差异 | 证据 | 处理 | 状态 | 复验 |
 | --- | --- | --- | --- | --- | --- | --- |
 | R1 | TODO | TODO | TODO | TODO | TODO | TODO |
 
-## 6. 验证矩阵
+## 7. 验证矩阵
 
 | 编号 | 层级 | 方法/命令/环境 | 预期 | 结果 | 证据 |
 | --- | --- | --- | --- | --- | --- |
 | V1 | 静态 | TODO | 迁移新增错误为 0 | TODO | TODO |
 | V2 | 功能 | TODO | 主流程和关键分支行为等价 | TODO | TODO |
-| V3 | 视觉 | TODO | 关键尺寸和位置误差 ≤1 CSS px | TODO | TODO |
+| V3 | 视觉 | TODO | 关键尺寸和位置误差 ≤1 逻辑显示单位 | TODO | TODO |
 | V4 | 边界 | TODO | 空、错、慢、并发、导航行为等价 | TODO | TODO |
 | V5 | 消费者 | TODO | 目标既有消费者无新增回归 | TODO | TODO |
 
-## 7. 硬门禁
+## 8. 硬门禁
 
 完整验收时门禁状态填写 PASS 或 FAIL；代码级完成时 G6、G8 必须填写 PENDING_RUNTIME，其余门禁仍必须 PASS。
 
@@ -194,7 +217,7 @@ def build_report(mode: str, source: str, target: str) -> str:
 | --- | --- | --- | --- |
 {render_gate_rows()}
 
-## 8. 证据评分
+## 9. 证据评分
 
 状态填写 PASS、PARTIAL、FAIL、UNVERIFIED 或 N/A：
 
@@ -209,15 +232,15 @@ def build_report(mode: str, source: str, target: str) -> str:
 | --- | --- | --- | ---: | --- | ---: | --- |
 {render_score_rows()}
 
-## 9. 回滚与归档
+## 10. 回滚与归档
 
 | 回滚项 | 当前状态/值 | 回滚动作 | 验证方式 | 证据 |
 | --- | --- | --- | --- | --- |
 | 目标起始提交 | TODO | TODO | TODO | TODO |
-| 路由/页面/菜单/入口 | TODO | TODO | TODO | TODO |
-| 公共组件/store/composable/service | TODO | TODO | TODO | TODO |
-| API/鉴权/实验/埋点 | TODO | TODO | TODO | TODO |
-| 缓存/storage/IndexedDB/持久化 | TODO | TODO | TODO | TODO |
+| 路由/导航/页面/screen/window/deep link/入口 | TODO | TODO | TODO | TODO |
+| 公共组件/store/view model/hook/service/bridge | TODO | TODO | TODO | TODO |
+| API/IPC/权限/鉴权/实验/埋点 | TODO | TODO | TODO | TODO |
+| cache/storage/数据库/文件/Keychain/Keystore | TODO | TODO | TODO | TODO |
 
 最终结论与交付说明：TODO
 """
@@ -241,7 +264,7 @@ def main() -> int:
         if not output_path.parent.exists():
             raise FileNotFoundError(f"输出目录不存在：{output_path.parent}")
         output_path.write_text(
-            build_report(args.mode, source, target),
+            build_report(args.mode, args.platform, source, target),
             encoding="utf-8",
         )
     except (OSError, ValueError) as error:
@@ -250,6 +273,7 @@ def main() -> int:
 
     print(f"已创建迁移报告：{output_path}")
     print(f"迁移模式：{args.mode}")
+    print(f"平台模式：{args.platform}")
     return 0
 
 

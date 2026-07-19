@@ -4,9 +4,10 @@
 
 ## 功能
 
-插件内置 `$migrate-feature`，用于将完整前端功能跨项目或跨页面迁移，并提供：
+插件内置 `$migrate-feature`，用于将完整 Web 前端、混合客户端或原生客户端功能跨项目、跨页面/视图迁移，并提供：
 
 - `cross-project` / `cross-page` 专项模式分流。
+- `web-frontend` / `hybrid-client` / `native-client` 平台分流。
 - P0/P1/P2 风险拦截。
 - 九阶段迁移 SOP。
 - 目标项目能力复用、目标规范落盘和文件冲突处理。
@@ -15,14 +16,14 @@
 - 冲突扫描、报告生成和报告自动校验脚本。
 - 单一机器规范源，完整阶段与模式 Checklist 不再多处维护。
 - 有证据的 `N/A` 从适用满分中剔除并归一化到 100 分。
-- 运行时视觉硬门禁要求真实浏览器引擎版本、截图、CSSOM computed style 和几何测量，关键误差 `≤1 CSS px`。
+- 运行时视觉硬门禁要求 Browser、App Window/WebView、模拟器/仿真器或真机的版本、截图、渲染样式和几何测量，关键误差 `≤1` 个平台逻辑显示单位。
 - 区分完整 `PASS` 与待运行时视觉验收的 `CODE_ONLY`，防止静态证据冒充视觉通过。
 
 固定优先级：
 
 1. 迁移后的逻辑、功能、交互和 UI 与源功能一致。
 2. 优先复用目标项目已有实现。
-3. 迁移后的代码规范、目录结构、模块分层和命名以目标项目为准。
+3. 迁移后的代码规范、目录结构、模块分层、命名和运行时集成以目标项目与平台为准。
 4. 只有符合目标规范且没有冲突时，才参考源目录和文件名。
 
 ## 安装
@@ -35,7 +36,7 @@ codex plugin add migrate-feature-plugin@migrate-feature-marketplace
 安装后新建 Codex 任务。插件支持自然语言自动触发，例如：
 
 ```text
-把 A 项目的图片上传功能迁移到 B 项目，保持逻辑和 UI 一致。
+把 A 项目的图片上传功能迁移到 B 项目或客户端，保持逻辑和 UI 一致。
 ```
 
 也可以显式调用 `$migrate-feature`。
@@ -77,6 +78,30 @@ codex plugin add migrate-feature-plugin@migrate-feature-marketplace
 - 验证 A→B→A、前进后退、刷新和离开页面后的副作用清理
 ```
 
+### 混合客户端迁移
+
+```text
+使用 $migrate-feature，把 Web 项目的文件上传功能迁移到 Electron/Tauri 客户端。
+
+要求：
+- 使用 hybrid-client 平台模式
+- 复用目标 preload/command、IPC/bridge、窗口与权限实现
+- 保持 context isolation、sandbox、CSP 和最小权限
+- 在实际 App Window 中完成截图、computed style 和几何验收
+```
+
+### 原生客户端迁移
+
+```text
+使用 $migrate-feature，把 A 客户端的图片编辑功能迁移到 B 客户端页面。
+
+要求：
+- 使用 native-client 平台模式
+- 复用目标 navigation、view model/reducer、repository 和主题系统
+- 覆盖权限、前后台、进程重建、安全区、键盘和无障碍
+- 在模拟器/仿真器或真机中完成截图、view inspector 和几何验收
+```
+
 ## 自动化门禁
 
 ```bash
@@ -86,6 +111,7 @@ python3 plugins/migrate-feature-plugin/skills/migrate-feature/scripts/scanMigrat
 
 python3 plugins/migrate-feature-plugin/skills/migrate-feature/scripts/createMigrationReport.py \
   --mode cross-page \
+  --platform native-client \
   --source /path/to/source-page \
   --target /path/to/target-page \
   --output /tmp/migration-report.md
@@ -96,7 +122,7 @@ python3 plugins/migrate-feature-plugin/skills/migrate-feature/scripts/validateMi
   /tmp/migration-report.md
 ```
 
-冲突扫描发现不同内容同名、大小写或路径类型冲突时返回非 0。报告由 `migrationSpec.py` 的单一规范生成；规范校验器会阻断重复 ID、非法门禁引用和评分权重漂移。报告校验器检查完整 Checklist、P0/P1、G0–G9、运行时视觉证据、N/A 归一化计算和 95 分合格线：退出码 0 为完整 PASS，1 为失败，3 为结构有效但运行时视觉待验收的 CODE_ONLY。
+冲突扫描发现不同内容同名、大小写或路径类型冲突时返回非 0。报告由 `migrationSpec.py` 的单一规范生成；规范校验器会阻断重复 ID、非法门禁引用、平台运行时规则和评分权重漂移。报告校验器检查完整阶段、迁移拓扑、平台 Checklist、P0/P1、G0–G9、运行时视觉证据、N/A 归一化计算和 95 分合格线：退出码 0 为完整 PASS，1 为失败，3 为结构有效但运行时视觉待验收的 CODE_ONLY。
 
 ## 目录
 
@@ -108,4 +134,4 @@ plugins/migrate-feature-plugin/skills/migrate-feature/
 
 ## 版本
 
-当前版本：`1.2.0`
+当前版本：`1.3.0`

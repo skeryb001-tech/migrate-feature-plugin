@@ -1,6 +1,6 @@
 # 验收与证据规则
 
-阶段、门禁、评分项和模式 Checklist 的唯一机器规范源是 `scripts/migrationSpec.py`。使用 `createMigrationReport.py` 渲染执行报告，使用 `validateMigrationReport.py` 判定报告是否完成；本文件只解释评分、证据、视觉和回滚语义。
+阶段、门禁、评分项、迁移拓扑和平台 Checklist 的唯一机器规范源是 `scripts/migrationSpec.py`。使用 `createMigrationReport.py` 渲染执行报告，使用 `validateMigrationReport.py` 判定报告是否完成；本文件只解释评分、证据、视觉和回滚语义。
 
 ## 1. 证据
 
@@ -8,29 +8,33 @@
 
 - 静态：命令、工具版本、退出码和关键输出。
 - 功能：相同输入、环境、操作步骤、预期、实际结果和请求/事件记录。
-- 视觉：相同数据、视口、设备像素比、缩放、主题、语言和字体状态下，由真实浏览器引擎产生的源/目标截图、CSSOM computed style 和几何测量。
+- 视觉：相同数据、设备/视口、像素密度/scale、缩放、主题、语言和字体状态下，由目标平台真实运行时产生的源/目标截图、渲染样式和几何测量。
 - 消费者：仓库级检索范围、直接/间接/动态/自动导入结果和聚焦回归。
 - 回滚：起始提交、关闭入口、恢复公共模块/API/埋点和清理持久化的可执行步骤。
 
 “已检查”“看起来一致”“应该没问题”属于结论，不属于证据。
 
-无法运行检查时保留原始阻塞证据，对应评分状态使用 `UNVERIFIED`，原始得分为 0。环境缺失不是 `N/A`。缺少真实浏览器引擎与版本、浏览器截图、CSSOM computed style 或几何测量时，`runtime_visual_verified` 必须为 `NO`，G6/G8 为 `PENDING_RUNTIME`，最终结论为 `CODE_ONLY`。自定义 HTML/Canvas/PNG 渲染器、静态 CSS 解析和手工 geometry JSON 只能作为补充证据，不能替代浏览器门禁。
+无法运行检查时保留原始阻塞证据，对应评分状态使用 `UNVERIFIED`，原始得分为 0。环境缺失不是 `N/A`。缺少 Browser、App Window/WebView、模拟器/仿真器或真机的真实版本、截图、渲染样式或几何测量时，`runtime_visual_verified` 必须为 `NO`，G6/G8 为 `PENDING_RUNTIME`，最终结论为 `CODE_ONLY`。自定义 renderer、静态 preview/snapshot、设计稿和手工 geometry 只能作为补充证据。
 
 完整运行时视觉证据使用以下机器字段：
 
 ```text
 runtime_visual_verified: YES
-runtime_visual_browser: <浏览器引擎与完整版本>
-runtime_visual_max_error_css_px: <0 到 1 的实测值>
-runtime_visual_evidence: browser=<引擎、版本、运行方式>; screenshot=<源/目标/差异图>; computed_style=<浏览器 CSSOM 记录>; viewport=<视口、DPR、缩放、主题、语言、字体>; geometry=<浏览器关键盒模型测量>
+runtime_visual_surface: <BROWSER / WEBVIEW / APP_WINDOW / SIMULATOR / EMULATOR / DEVICE>
+runtime_visual_environment: <OS、运行时、UI 框架及版本>
+runtime_visual_unit: <CSS_PX / PT / DP / LOGICAL_PX>
+runtime_visual_max_error: <0 到 1 的实测值>
+runtime_visual_evidence: runtime=<环境>; screenshot=<源/目标/差异图>; rendered_style=<CSSOM 或 view inspector>; viewport=<设备、视口、density/scale、主题、语言、字体>; geometry=<关键布局测量>
 ```
 
 无法运行时使用：
 
 ```text
 runtime_visual_verified: NO
-runtime_visual_browser: UNVERIFIED
-runtime_visual_max_error_css_px: UNVERIFIED
+runtime_visual_surface: UNVERIFIED
+runtime_visual_environment: UNVERIFIED
+runtime_visual_unit: UNVERIFIED
+runtime_visual_max_error: UNVERIFIED
 runtime_visual_evidence: UNVERIFIED: <原因>; evidence=<原始阻塞证据>
 ```
 
@@ -74,21 +78,22 @@ total_score = 100
 
 在相同对照条件下：
 
-- 关键组件宽高、间距、对齐、位置和盒模型误差必须 `≤1 CSS px`。
-- 颜色、透明度、边框、圆角、阴影和资源应与源一致；使用目标 token 时，以最终 computed style 和视觉等价为准。
-- 字体抗锯齿可按操作系统差异解释，文字容器、行高、换行、基线和整体盒模型仍需满足 1 px 阈值。
+- 关键组件宽高、间距、对齐、位置和布局几何误差必须 `≤1` 个平台逻辑显示单位。
+- Web/混合客户端使用 `CSS_PX`；iOS/macOS 使用 `PT`；Android 使用 `DP`；Flutter/React Native 可使用 `LOGICAL_PX`。不得用物理像素密度放宽阈值。
+- 颜色、透明度、边框、圆角、阴影和资源应与源一致；使用目标 token/theme 时，以真实运行时的 computed style 或 view inspector 与视觉等价为准。
+- 字体栅格化可按 OS/渲染引擎差异解释，文字容器、行高、换行、基线和整体布局仍需满足阈值。
 - 动效需对比触发条件、时长、缓动、关键状态、打断和 reduced-motion。
 
-项目或用户给出更严格阈值时使用更严格值。放宽 1 px 阈值属于验收规则变更，先取得用户确认并记录风险。
+项目或用户给出更严格阈值时使用更严格值。放宽 1 个逻辑显示单位属于验收规则变更，先取得用户确认并记录风险。
 
 ## 4. 合格条件
 
 同时满足以下条件才判定完整合格：
 
 - `p0_open = 0`、`p1_open = 0`。
-- `runtime_visual_verified = YES`，记录真实浏览器引擎与版本，实测最大误差 `≤1 CSS px`，证据包含浏览器截图、CSSOM computed style、对照环境和几何测量。
+- `runtime_visual_verified = YES`，surface、运行环境和单位符合所选平台，实测最大误差 `≤1`，证据包含目标平台截图、渲染样式、对照环境和几何测量。
 - G0–G9 全部 `PASS` 且证据有效。
-- 完整阶段和所选模式 Checklist 全部保留原 ID、原文本并完成。
+- 完整阶段、所选迁移拓扑和平台 Checklist 全部保留原 ID、原文本并完成。
 - `total_score ≥95`。
 - 报告校验脚本返回 0。
 
@@ -101,9 +106,9 @@ total_score = 100
 实现前记录：
 
 - 目标起始提交和本次改动边界。
-- 路由、页面、菜单、入口或 feature flag 的关闭方式。
-- 公共组件、store、composable、service、types 和 exports 的恢复方式及消费者。
-- API、鉴权、实验和埋点恢复方式。
-- cache、storage、IndexedDB 和其他持久化清理方式。
+- 路由/导航、页面/screen/window、菜单、deep link、入口或 feature flag 的关闭方式。
+- 公共组件、store/view model、hook/composable、service/repository/bridge、types 和 exports 的恢复方式及消费者。
+- API/IPC/bridge、权限、鉴权、实验和埋点恢复方式。
+- cache、storage、IndexedDB、数据库、文件、Keychain/Keystore 和其他持久化清理方式。
 
 回滚步骤需保护目标原有数据、文件和用户改动，并通过演练或静态证据证明可执行。

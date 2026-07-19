@@ -1,0 +1,33 @@
+{
+  "name": "migrate-feature-plugin",
+  "version": "1.0.0",
+  "description": "前端跨项目与跨页面功能迁移 SOP，包含风险门禁、分层执行、量化验收和故障兜底。",
+  "author": {
+    "name": "skeryb001-tech",
+    "url": "https://github.com/skeryb001-tech"
+  },
+  "homepage": "https://github.com/skeryb001-tech/migrate-feature-plugin",
+  "repository": "https://github.com/skeryb001-tech/migrate-feature-plugin",
+  "keywords": [
+    "frontend",
+    "migration",
+    "ui",
+    "sop"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "前端功能迁移 SOP",
+    "shortDescription": "跨项目与跨页面迁移，包含风险门禁和量化验收",
+    "longDescription": "完整迁移前端业务逻辑、数据契约、交互行为与 UI，优先复用目标项目能力，处理文件冲突，并通过九阶段 SOP、P0/P1/P2 门禁和 100 分制完成验收。",
+    "developerName": "skeryb001-tech",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "使用 $migrate-feature 把指定前端功能跨项目迁移，并完成逻辑与 UI 一比一验收。",
+      "使用 $migrate-feature 把一个页面的完整功能迁移到目标页面，并优先复用目标项目实现。"
+    ]
+  }
+}

@@ -8,15 +8,14 @@
 
 - `cross-project` / `cross-page` 专项模式分流。
 - `web-frontend` / `hybrid-client` / `native-client` 平台分流。
-- P0/P1/P2 风险拦截。
-- 九阶段迁移 SOP。
+- 按风险自动选择日常流程或增强验收，小迁移默认不生成报告。
+- 五步主流程与 C1–C4 四个检查点。
 - 目标项目能力复用、目标规范落盘和文件冲突处理。
-- 业务逻辑、UI、边界场景和回归校验。
-- 共享消费者保护、回滚方案和 100 分量化验收。
+- 按实际影响执行业务逻辑、UI、边界场景和消费者回归。
+- 共享消费者保护、回滚方案和条件式运行时/视觉验收。
 - 冲突扫描、报告生成和报告自动校验脚本。
-- 单一机器规范源，完整阶段与模式 Checklist 不再多处维护。
-- 有证据的 `N/A` 从适用满分中剔除并归一化到 100 分。
-- 运行时视觉硬门禁要求 Browser、App Window/WebView、模拟器/仿真器或真机的版本、截图、渲染样式和几何测量，关键误差 `≤1` 个平台逻辑显示单位。
+- 单一机器规范源维护检查点、迁移模式与平台运行时约束。
+- 仅在 UI 正式验收时要求 Browser、App Window/WebView、模拟器/仿真器或真机的版本、截图、渲染样式和几何对照。
 - 区分完整 `PASS` 与待运行时视觉验收的 `CODE_ONLY`，防止静态证据冒充视觉通过。
 
 固定优先级：
@@ -114,6 +113,7 @@ python3 plugins/migrate-feature-plugin/skills/migrate-feature/scripts/createMigr
   --platform native-client \
   --source /path/to/source-page \
   --target /path/to/target-page \
+  --reason "跨原生运行时并要求正式验收" \
   --output /tmp/migration-report.md
 
 python3 plugins/migrate-feature-plugin/skills/migrate-feature/scripts/validateMigrationSpec.py
@@ -122,7 +122,7 @@ python3 plugins/migrate-feature-plugin/skills/migrate-feature/scripts/validateMi
   /tmp/migration-report.md
 ```
 
-冲突扫描发现不同内容同名、大小写或路径类型冲突时返回非 0。报告由 `migrationSpec.py` 的单一规范生成；规范校验器会阻断重复 ID、非法门禁引用、平台运行时规则和评分权重漂移。报告校验器检查完整阶段、迁移拓扑、平台 Checklist、P0/P1、G0–G9、运行时视觉证据、N/A 归一化计算和 95 分合格线：退出码 0 为完整 PASS，1 为失败，3 为结构有效但运行时视觉待验收的 CODE_ONLY。
+日常迁移直接执行五步流程，无需运行报告脚本。高风险、跨运行时、共享公共契约或正式一比一验收时才创建增强报告。冲突扫描也只用于实际文件迁入或路径碰撞风险。报告由 `migrationSpec.py` 的单一规范生成；校验器检查 C1–C4、阻断项和条件式运行时/视觉证据：退出码 0 为 `PASS`，1 为失败或 `BLOCKED`，3 为代码证据有效但必需运行时/视觉验收待补的 `CODE_ONLY`。
 
 ## 目录
 

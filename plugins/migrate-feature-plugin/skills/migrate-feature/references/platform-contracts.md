@@ -9,7 +9,7 @@
 - 把 DOM/语义结构、CSS cascade、盒模型、SSR/CSR、hydration、URL/history、缓存和多标签页纳入契约。
 - 复用目标组件、token、路由、请求层、状态管理、i18n 和可访问性模式。
 - 使用真实 Chrome/Chromium、Firefox、Safari/WebKit 或 Edge，记录完整版本。
-- `runtime_visual_surface=BROWSER`，`runtime_visual_unit=CSS_PX`。
+- 正式视觉验收时使用 `visual_surface=BROWSER`、`visual_unit=CSS_PX`。
 - 视觉证据使用浏览器截图、CSSOM computed style、DOM geometry 和固定 viewport/DPR/zoom。
 
 ## `hybrid-client`
@@ -22,7 +22,7 @@
 - 覆盖窗口创建、单实例、多窗口、最小化/恢复、前后台、休眠唤醒、离线恢复和退出清理。
 - 检查文件系统、剪贴板、通知、托盘、deep link、自定义协议、secure storage、更新与签名边界。
 - 使用实际构建/运行的 App Window 或 WebView；浏览器标签页只能作为补充证据。
-- `runtime_visual_surface=APP_WINDOW|WEBVIEW`，`runtime_visual_unit=CSS_PX`。
+- 正式视觉验收时使用 `visual_surface=APP_WINDOW|WEBVIEW`、`visual_unit=CSS_PX`。
 
 ## `native-client`
 
@@ -35,19 +35,18 @@
 - 覆盖 safe area、状态/导航栏、刘海/折叠屏、键盘、旋转、字号缩放、RTL 和无障碍。
 - 原生模块/bridge/plugin 复用必须验证 ABI、架构、版本和 release 构建兼容。
 - 使用模拟器、仿真器或真机；静态 preview、snapshot renderer 和设计稿只能作为补充证据。
-- `runtime_visual_surface=SIMULATOR|EMULATOR|DEVICE`；iOS/macOS 使用 `PT`，Android 使用 `DP`，Flutter/React Native 可使用 `LOGICAL_PX`。
+- 正式视觉验收时使用 `visual_surface=SIMULATOR|EMULATOR|DEVICE`；iOS/macOS 使用 `PT`，Android 使用 `DP`，Flutter/React Native 可使用 `LOGICAL_PX`。
 
-## 共同视觉门禁
+## 需要视觉验收时
 
-完整 PASS 必须记录：
+仅当迁移包含用户可见 UI，且用户或项目要求正式视觉验收时记录：
 
 ```text
-runtime_visual_verified: YES
-runtime_visual_surface: <平台允许值>
-runtime_visual_environment: <OS、运行时、UI 框架及版本>
-runtime_visual_unit: <CSS_PX / PT / DP / LOGICAL_PX>
-runtime_visual_max_error: <0 到 1>
-runtime_visual_evidence: runtime=<环境>; screenshot=<源/目标>; rendered_style=<样式或 inspector>; viewport=<设备/视口/scale>; geometry=<测量>
+visual_verified: YES
+visual_surface: <平台允许值>
+visual_environment: <OS、运行时、UI 框架及版本>
+visual_unit: <CSS_PX / PT / DP / LOGICAL_PX>
+visual_evidence: screenshot=<源/目标>; rendered_style=<样式或 inspector>; viewport=<设备/视口/scale>; geometry=<测量>
 ```
 
-任一运行时证据缺失时，把上述 surface/environment/unit/max_error 填为 `UNVERIFIED`，G6/G8 填为 `PENDING_RUNTIME`，结论填为 `CODE_ONLY`。环境缺失不是 `N/A`。
+需要视觉验收但证据缺失时，把 surface/environment/unit 填为 `UNVERIFIED`，`visual_verified: NO`，结论填为 `CODE_ONLY`。没有 UI 或不要求正式视觉验收时使用 `visual_required: NO` 和带证据的 `NOT_REQUIRED`，无需制造视觉清单。

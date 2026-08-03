@@ -18,7 +18,7 @@ def main() -> int:
             print(f"- {error}", file=sys.stderr)
         return 1
 
-    print("迁移机器规范校验通过：阶段、门禁、Checklist 与评分权重完整。")
+    print("迁移机器规范校验通过：C1-C4、迁移模式与平台运行时规则完整。")
     return 0
 
 

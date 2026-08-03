@@ -1,114 +1,68 @@
-# 验收与证据规则
+# 增强验收与证据规则
 
-阶段、门禁、评分项、迁移拓扑和平台 Checklist 的唯一机器规范源是 `scripts/migrationSpec.py`。使用 `createMigrationReport.py` 渲染执行报告，使用 `validateMigrationReport.py` 判定报告是否完成；本文件只解释评分、证据、视觉和回滚语义。
+本文件只用于高风险、跨运行时、共享公共契约或正式一比一验收。日常迁移不需要创建报告或逐项填写本文件。
 
-## 1. 证据
+`scripts/migrationSpec.py` 定义 C1–C4、迁移拓扑和平台运行时约束；`createMigrationReport.py` 生成精简报告；`validateMigrationReport.py` 校验机器摘要和四个检查点。报告中的明细表用于工作记录，可按实际范围合并或删除；机器摘要和 C1–C4 不得删除。
 
-有效证据必须能让另一位执行者复现结论：
+## 1. 有效证据
+
+证据应让另一位执行者复现结论：
 
 - 静态：命令、工具版本、退出码和关键输出。
-- 功能：相同输入、环境、操作步骤、预期、实际结果和请求/事件记录。
-- 视觉：相同数据、设备/视口、像素密度/scale、缩放、主题、语言和字体状态下，由目标平台真实运行时产生的源/目标截图、渲染样式和几何测量。
-- 消费者：仓库级检索范围、直接/间接/动态/自动导入结果和聚焦回归。
-- 回滚：起始提交、关闭入口、恢复公共模块/API/埋点和清理持久化的可执行步骤。
+- 功能：输入、环境、操作、预期、实际结果和请求/事件记录。
+- 视觉：相同数据、设备/视口、scale、主题、语言和字体下的源/目标截图、渲染样式和几何对照。
+- 消费者：检索范围、直接/间接/动态/自动发现结果和聚焦回归。
+- 回滚：起始提交、入口关闭、共享能力恢复和持久化清理步骤。
 
-“已检查”“看起来一致”“应该没问题”属于结论，不属于证据。
-
-无法运行检查时保留原始阻塞证据，对应评分状态使用 `UNVERIFIED`，原始得分为 0。环境缺失不是 `N/A`。缺少 Browser、App Window/WebView、模拟器/仿真器或真机的真实版本、截图、渲染样式或几何测量时，`runtime_visual_verified` 必须为 `NO`，G6/G8 为 `PENDING_RUNTIME`，最终结论为 `CODE_ONLY`。自定义 renderer、静态 preview/snapshot、设计稿和手工 geometry 只能作为补充证据。
-
-完整运行时视觉证据使用以下机器字段：
+“已检查”“看起来一致”“应该没问题”属于结论，不属于证据。无法运行时使用：
 
 ```text
-runtime_visual_verified: YES
-runtime_visual_surface: <BROWSER / WEBVIEW / APP_WINDOW / SIMULATOR / EMULATOR / DEVICE>
-runtime_visual_environment: <OS、运行时、UI 框架及版本>
-runtime_visual_unit: <CSS_PX / PT / DP / LOGICAL_PX>
-runtime_visual_max_error: <0 到 1 的实测值>
-runtime_visual_evidence: runtime=<环境>; screenshot=<源/目标/差异图>; rendered_style=<CSSOM 或 view inspector>; viewport=<设备、视口、density/scale、主题、语言、字体>; geometry=<关键布局测量>
+UNVERIFIED: <原因>; evidence=<原始阻塞证据>
 ```
 
-无法运行时使用：
+确实无需执行时使用：
 
 ```text
-runtime_visual_verified: NO
-runtime_visual_surface: UNVERIFIED
-runtime_visual_environment: UNVERIFIED
-runtime_visual_unit: UNVERIFIED
-runtime_visual_max_error: UNVERIFIED
-runtime_visual_evidence: UNVERIFIED: <原因>; evidence=<原始阻塞证据>
+NOT_REQUIRED: <原因>; evidence=<范围或调用链证明>
 ```
 
-## 2. 评分状态
+## 2. 条件式运行时验收
 
-| 状态 | 原始得分 | 要求 |
-| --- | ---: | --- |
-| `PASS` | 该项满分 | 结果通过且证据完整 |
-| `PARTIAL` | 大于 0、小于满分 | 仅限用户接受的 P2；记录 P2 编号和接受证据 |
-| `FAIL` | 0 | 结果失败，阻断最终验收 |
-| `UNVERIFIED` | 0 | 尚未验证；仅视觉运行时待验收可形成 `CODE_ONLY` |
-| `N/A` | 0 | 业务上不适用；说明原因并提供证明材料 |
-
-`N/A` 使用以下证据格式：
+只有业务结果必须在真实运行环境中证明时才填写：
 
 ```text
-N/A: <不适用原因>; evidence=<证明材料>
+runtime_required: YES
+runtime_verified: YES
+runtime_environment: <环境与版本>
+runtime_evidence: <命令、操作、请求或结果>
 ```
 
-### N/A 归一化
+纯静态映射、类型迁移或无运行时影响时可使用 `runtime_required: NO`，其余字段使用 `NOT_REQUIRED` 格式。需要但无法运行时，`runtime_verified: NO`、环境填 `UNVERIFIED`，结论为 `CODE_ONLY`。
 
-有证据的 `N/A` 不扣分，其满分从分母剔除：
+## 3. 条件式视觉验收
+
+只有迁移包含用户可见 UI，且用户或项目要求正式视觉验收时，才设置 `visual_required: YES`。完整证据至少包含：
 
 ```text
-raw_score = 所有适用项的原始得分之和
-applicable_max_score = 100 - 所有 N/A 项满分之和
-total_score = round(raw_score / applicable_max_score * 100, 2)
+visual_verified: YES
+visual_surface: <BROWSER / WEBVIEW / APP_WINDOW / SIMULATOR / EMULATOR / DEVICE>
+visual_unit: <CSS_PX / PT / DP / LOGICAL_PX>
+visual_environment: <OS、运行时、UI 框架及版本>
+visual_evidence: screenshot=<源/目标>; rendered_style=<CSSOM 或 inspector>; viewport=<条件>; geometry=<对照>
 ```
 
-示例：5 分项目为 `N/A`，其余 95 分全部通过：
+误差阈值使用用户或项目给出的标准；没有明确数值时，以关键布局、状态和交互的用户可感知等价为准，不人为制造统一评分。静态 preview、snapshot renderer 和设计稿只能作为补充证据。
 
-```text
-raw_score = 95
-applicable_max_score = 95
-total_score = 100
-```
+没有 UI 或不要求正式视觉验收时使用 `visual_required: NO` 和 `NOT_REQUIRED` 证据；需要但运行环境不可用时使用 `UNVERIFIED`，结论为 `CODE_ONLY`。
 
-`N/A` 只适用于确实不存在的评分分支。环境缺失、证据缺失、尚未执行或执行失败均不能使用 `N/A`。P0/P1、G0–G9、主流程、关键分支、关键 UI 状态、冲突和消费者兼容硬门禁始终需要真实结论。
+## 4. 结论
 
-## 3. UI 等价
+- `PASS`：C1–C4 通过、阻断项为 0，所有必需运行时/视觉验收完成。
+- `CODE_ONLY`：C1–C4 和代码级证据有效、阻断项为 0，但必需运行时或视觉证据待补。
+- `BLOCKED`：存在数据、安全、权限、生产配置、不可逆写入、同名覆盖、未授权公共契约变更或其他阻断项。
 
-在相同对照条件下：
-
-- 关键组件宽高、间距、对齐、位置和布局几何误差必须 `≤1` 个平台逻辑显示单位。
-- Web/混合客户端使用 `CSS_PX`；iOS/macOS 使用 `PT`；Android 使用 `DP`；Flutter/React Native 可使用 `LOGICAL_PX`。不得用物理像素密度放宽阈值。
-- 颜色、透明度、边框、圆角、阴影和资源应与源一致；使用目标 token/theme 时，以真实运行时的 computed style 或 view inspector 与视觉等价为准。
-- 字体栅格化可按 OS/渲染引擎差异解释，文字容器、行高、换行、基线和整体布局仍需满足阈值。
-- 动效需对比触发条件、时长、缓动、关键状态、打断和 reduced-motion。
-
-项目或用户给出更严格阈值时使用更严格值。放宽 1 个逻辑显示单位属于验收规则变更，先取得用户确认并记录风险。
-
-## 4. 合格条件
-
-同时满足以下条件才判定完整合格：
-
-- `p0_open = 0`、`p1_open = 0`。
-- `runtime_visual_verified = YES`，surface、运行环境和单位符合所选平台，实测最大误差 `≤1`，证据包含目标平台截图、渲染样式、对照环境和几何测量。
-- G0–G9 全部 `PASS` 且证据有效。
-- 完整阶段、所选迁移拓扑和平台 Checklist 全部保留原 ID、原文本并完成。
-- `total_score ≥95`。
-- 报告校验脚本返回 0。
-
-报告结构、代码级检查和非视觉硬门禁有效，但运行时视觉证据缺失时，校验脚本返回 3；该状态不是合格，不得对外声明一比一验收通过。报告无效或验收失败时返回 1。
-
-80–94 分为不合格，修复后重新验证。低于 80 分、任一 P0/P1、硬门禁失败、主流程失败、同名覆盖或未授权依赖/公共契约变更均需退回最早错误阶段重做。
+校验器退出码分别为 `0`、`3`、`1`。不再使用 100 分评分、P0/P1/P2 计数或不适用项逐条归一化。
 
 ## 5. 回滚
 
-实现前记录：
-
-- 目标起始提交和本次改动边界。
-- 路由/导航、页面/screen/window、菜单、deep link、入口或 feature flag 的关闭方式。
-- 公共组件、store/view model、hook/composable、service/repository/bridge、types 和 exports 的恢复方式及消费者。
-- API/IPC/bridge、权限、鉴权、实验和埋点恢复方式。
-- cache、storage、IndexedDB、数据库、文件、Keychain/Keystore 和其他持久化清理方式。
-
-回滚步骤需保护目标原有数据、文件和用户改动，并通过演练或静态证据证明可执行。
+至少记录目标起始提交、入口关闭方式、共享能力/API/bridge/权限/埋点恢复方式，以及本次新增持久化数据的清理方式。回滚不得覆盖目标已有文件、数据或用户改动。

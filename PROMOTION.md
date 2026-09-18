@@ -10,17 +10,45 @@
 - 根据风险区分普通迁移、增强验收和阻断项。
 - 清楚报告已验证内容，以及仍需浏览器、App 或真机验证的部分。
 
-## 3 分钟安装
+## 安装
 
-在 Codex CLI 中运行：
+### Codex 桌面客户端
+
+当前仓库通过 GitHub Marketplace 分发。首次使用时，先在终端注册 Marketplace：
+
+```bash
+codex plugin marketplace add skeryb001-tech/migrate-feature-plugin --ref main
+```
+
+然后回到 Codex 的 **Plugins** 页面，选择 `migrate-feature-marketplace`，找到
+`migrate-feature-plugin` 并点击安装。安装完成后新建一个 Codex 任务。
+
+如果插件已发布到公共 Plugin Directory，也可以直接在 **Plugins** 页面搜索
+`migrate-feature-plugin` 并安装。
+
+### Codex CLI
 
 ```bash
 codex plugin marketplace add skeryb001-tech/migrate-feature-plugin --ref main
 codex plugin add migrate-feature-plugin@migrate-feature-marketplace
 ```
 
-然后新建一个 Codex 任务。也可以在 Codex 的插件页面中找到并安装
-`migrate-feature-plugin`。
+安装后新建一个 Codex 会话。
+
+### 本地源码
+
+```bash
+git clone https://github.com/skeryb001-tech/migrate-feature-plugin.git
+cd migrate-feature-plugin
+codex plugin marketplace add .
+codex plugin add migrate-feature-plugin@migrate-feature-marketplace
+```
+
+更新插件：
+
+```bash
+codex plugin marketplace upgrade migrate-feature-marketplace
+```
 
 ## 第一个任务
 

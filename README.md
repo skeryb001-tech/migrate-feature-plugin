@@ -10,23 +10,22 @@
 
 ### 傻瓜式安装（推荐非开发人员使用）
 
-在 Codex 客户端新建一个任务，直接复制下面的内容并发送：
+在 Codex 客户端打开 **Terminal / 终端**，点击代码块右上角的复制按钮，粘贴并运行：
 
-```text
-请帮我安装或更新 Codex 插件。
-
-插件仓库：https://github.com/skeryb001-tech/migrate-feature-plugin
-Marketplace：migrate-feature-marketplace
-插件名称：migrate-feature-plugin
-
-请完成以下操作：
-1. 从上述 GitHub Marketplace 安装或更新插件。
-2. 确认插件已安装并启用。
-3. 不要修改我当前项目的业务代码。
-4. 完成后告诉我插件版本和安装结果。
+```bash
+codex plugin marketplace add skeryb001-tech/migrate-feature-plugin --ref main
+codex plugin add migrate-feature-plugin@migrate-feature-marketplace
 ```
 
-Codex 可能会请求执行安装命令或访问 GitHub，请允许相关操作。安装完成后新建一个 Codex 任务，即可直接使用 `$migrate-feature`。
+安装完成后，重新打开或新建一个 Codex 任务，即可使用 `$migrate-feature`。
+
+如果已经安装过，只需复制下面的命令更新插件：
+
+```bash
+codex plugin marketplace upgrade migrate-feature-marketplace
+```
+
+如果 Codex 请求访问 GitHub 或执行安装命令，请选择允许。
 
 ### Codex 桌面客户端
 

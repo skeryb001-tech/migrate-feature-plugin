@@ -8,6 +8,26 @@
 
 ## 安装
 
+### 傻瓜式安装（推荐非开发人员使用）
+
+在 Codex 客户端新建一个任务，直接复制下面的内容并发送：
+
+```text
+请帮我安装或更新 Codex 插件。
+
+插件仓库：https://github.com/skeryb001-tech/migrate-feature-plugin
+Marketplace：migrate-feature-marketplace
+插件名称：migrate-feature-plugin
+
+请完成以下操作：
+1. 从上述 GitHub Marketplace 安装或更新插件。
+2. 确认插件已安装并启用。
+3. 不要修改我当前项目的业务代码。
+4. 完成后告诉我插件版本和安装结果。
+```
+
+Codex 可能会请求执行安装命令或访问 GitHub，请允许相关操作。安装完成后新建一个 Codex 任务，即可直接使用 `$migrate-feature`。
+
 ### Codex 桌面客户端
 
 当前仓库通过 GitHub Marketplace 分发。首次使用时，先在终端注册 Marketplace：

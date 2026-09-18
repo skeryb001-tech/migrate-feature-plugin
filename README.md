@@ -17,7 +17,6 @@
 ```text
 [skeryb001-tech/migrate-feature-plugin](https://github.com/skeryb001-tech/migrate-feature-plugin)
 请帮我通过 Codex 终端安装或更新这个插件。如果需要执行命令或访问 GitHub，请先请求权限；不要修改当前项目业务代码。
-注意：迁移过程中源项目的目标迁移功能需要完全1:1的适配迁移。
 ```
 
 Codex 会根据 GitHub 仓库完成插件安装。安装完成后重新打开或新建一个 Codex 任务，即可使用 `$migrate-feature`。

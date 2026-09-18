@@ -120,36 +120,6 @@ codex plugin marketplace upgrade migrate-feature-marketplace
 
 静态检查不能替代浏览器、App Window、WebView、模拟器或真机验证。
 
-## 开发与校验
-
-仓库不需要构建产物。提交前运行：
-
-```bash
-python3 -B plugins/migrate-feature-plugin/skills/migrate-feature/scripts/validatePluginMetadata.py
-python3 -B plugins/migrate-feature-plugin/skills/migrate-feature/scripts/validateMigrationSpec.py
-python3 -B plugins/migrate-feature-plugin/skills/migrate-feature/scripts/testScanMigrationConflicts.py
-python3 -B plugins/migrate-feature-plugin/skills/migrate-feature/scripts/testMigrationReportValidator.py
-git diff --check
-```
-
-高风险、跨运行时、共享公共契约或正式“一比一”验收时，再生成并校验增强报告：
-
-```bash
-python3 plugins/migrate-feature-plugin/skills/migrate-feature/scripts/createMigrationReport.py \
-  --mode cross-project \
-  --platform web-frontend \
-  --source /path/to/source \
-  --target /path/to/target \
-  --reason "跨运行时或正式验收" \
-  --parity-mode STRICT \
-  --output /tmp/migration-report.md
-
-python3 plugins/migrate-feature-plugin/skills/migrate-feature/scripts/validateMigrationReport.py \
-  /tmp/migration-report.md
-```
-
-严格报告还需要在报告目录准备 `source-inventory.json` 和 `feature-matrix.json`；如果迁移包含 UI，还需要准备 `rendering-contract.json`。这些文件必须是逐项可解析的 JSON 证据文件，不能只填写关键词。
-
 ## 目录结构
 
 ```text

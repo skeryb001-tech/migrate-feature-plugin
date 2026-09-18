@@ -120,9 +120,14 @@ python3 plugins/migrate-feature-plugin/skills/migrate-feature/scripts/validateMi
 
 python3 plugins/migrate-feature-plugin/skills/migrate-feature/scripts/validateMigrationReport.py \
   /tmp/migration-report.md
+
+python3 -B plugins/migrate-feature-plugin/skills/migrate-feature/scripts/validatePluginMetadata.py
+python3 -B plugins/migrate-feature-plugin/skills/migrate-feature/scripts/testScanMigrationConflicts.py
 ```
 
 日常迁移直接执行五步流程，无需运行报告脚本。高风险、跨运行时、共享公共契约或正式一比一验收时才创建增强报告。冲突扫描也只用于实际文件迁入或路径碰撞风险。报告由 `migrationSpec.py` 的单一规范生成；校验器检查 C1–C4、阻断项和条件式运行时/视觉证据：退出码 0 为 `PASS`，1 为失败或 `BLOCKED`，3 为代码证据有效但必需运行时/视觉验收待补的 `CODE_ONLY`。
+
+`validatePluginMetadata.py` 用于检查插件版本、Marketplace 注册和本地路径是否一致；`testScanMigrationConflicts.py` 覆盖冲突扫描器的主要路径冲突分支。两个脚本都使用 Python 标准库，不生成构建产物。
 
 ## 目录
 
@@ -134,4 +139,4 @@ plugins/migrate-feature-plugin/skills/migrate-feature/
 
 ## 版本
 
-当前版本：`1.3.0`
+当前版本：`1.4.0`

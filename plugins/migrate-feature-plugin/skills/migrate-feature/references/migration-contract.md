@@ -1,8 +1,23 @@
 # 增强验收与证据规则
 
-本文件只用于高风险、跨运行时、共享公共契约或正式一比一验收。日常迁移不需要创建报告或逐项填写本文件。
+本文件只用于高风险、跨运行时、共享公共契约或正式一比一验收。请求包含“完整功能、原样、所有功能、一比一”时必须创建严格报告；日常迁移不需要创建报告或逐项填写本文件。
 
 `scripts/migrationSpec.py` 定义 C1–C4、迁移拓扑和平台运行时约束；`createMigrationReport.py` 生成精简报告；`validateMigrationReport.py` 校验机器摘要和四个检查点。报告中的明细表用于工作记录，可按实际范围合并或删除；机器摘要和 C1–C4 不得删除。
+
+## 0. 严格完整迁移字段
+
+严格模式必须填写以下机器字段：
+
+```text
+parity_mode: STRICT
+source_inventory: <入口递归闭包，包含组件、状态、API/Bridge、鉴权/支付/额度、路由、埋点、资源和生命周期>
+feature_matrix: <功能矩阵位置或逐行摘要；每项必须标记 PRESERVED、ADAPTED、MIGRATED 或 MISSING>
+route_activation: PASS|PENDING|BLOCKED
+unimplemented_items: <非负整数>
+adapted_items: <非负整数>
+```
+
+`unimplemented_items` 统计 `MISSING`、没有目标落点、没有入口激活证明、未决关键分支以及未经等价证明的替换。严格模式下数量大于 0 时必须为 `BLOCKED`；不能用 `CODE_ONLY` 掩盖功能缺失。`adapted_items` 只统计已实现但存在明确目标差异的职责，不等于缺失项。
 
 ## 1. 有效证据
 
@@ -60,6 +75,8 @@ visual_evidence: screenshot=<源/目标>; rendered_style=<CSSOM 或 inspector>; 
 - `PASS`：C1–C4 通过、阻断项为 0，所有必需运行时/视觉验收完成。
 - `CODE_ONLY`：C1–C4 和代码级证据有效、阻断项为 0，但必需运行时或视觉证据待补。
 - `BLOCKED`：存在数据、安全、权限、生产配置、不可逆写入、同名覆盖、未授权公共契约变更或其他阻断项。
+
+严格模式额外要求：`source_inventory`、`feature_matrix` 有效，`route_activation=PASS`，`unimplemented_items=0`。否则结论只能为 `BLOCKED` 或在仅缺运行时/视觉证据时为 `CODE_ONLY`，但不能声称完整迁移已完成。
 
 校验器退出码分别为 `0`、`3`、`1`。不再使用 100 分评分、P0/P1/P2 计数或不适用项逐条归一化。
 

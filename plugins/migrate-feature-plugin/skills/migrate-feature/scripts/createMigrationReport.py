@@ -70,10 +70,16 @@ def build_report(
 - report_schema: 2
 - migration_mode: {mode}
 - platform_mode: {platform}
+- parity_mode: ADAPTED
 - source: {source}
 - target: {target}
 - generated_at_utc: {generated_at}
 - enhanced_reason: {reason}
+- source_inventory: TODO
+- feature_matrix: TODO
+- route_activation: TODO
+- unimplemented_items: TODO
+- adapted_items: TODO
 - source_baseline: TODO
 - target_baseline: TODO
 - target_rules: TODO

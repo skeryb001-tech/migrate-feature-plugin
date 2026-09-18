@@ -1,7 +1,7 @@
 {
   "name": "migrate-feature-plugin",
-  "version": "1.4.0",
-  "description": "风险自适应、行为等价、目标优先的 Web 与客户端跨项目、跨页面/视图功能迁移。",
+  "version": "1.5.0",
+  "description": "风险自适应、行为等价、目标优先的 Web 与客户端功能迁移；完整/原样/一比一请求强制源依赖闭包、功能矩阵、路由激活和缺失项阻断。",
   "author": {
     "name": "skeryb001-tech",
     "url": "https://github.com/skeryb001-tech"
@@ -20,7 +20,7 @@
   "interface": {
     "displayName": "风险自适应功能迁移",
     "shortDescription": "风险自适应的 Web 与客户端行为/UI 等价迁移流程",
-    "longDescription": "以五步主流程和 C1-C4 检查点迁移 Web 与客户端功能，保持源业务行为与必要 UI 等价并按目标结构落盘。日常迁移不生成重型报告；跨运行时、安全/支付/持久化、共享公共契约或正式一比一验收时，才升级冲突、消费者、回滚及 Browser、WebView/App Window、模拟器/真机证据。",
+    "longDescription": "以五步主流程和 C1-C4 检查点迁移 Web 与客户端功能，保持源业务行为与必要 UI 等价并按目标结构落盘。完整功能、原样、所有功能和一比一请求会强制建立源依赖闭包、功能矩阵、目标路由激活证明，并对未实现项阻断验收。",
     "developerName": "skeryb001-tech",
     "category": "Productivity",
     "capabilities": [
@@ -29,6 +29,7 @@
     ],
     "defaultPrompt": [
       "把 A 项目的完整功能迁移到 B 项目，保持行为与 UI 等价并遵循 B 项目结构。",
+      "把 A 项目的完整功能原样迁移到 B；先建立源依赖闭包和功能矩阵，缺失功能不得标记为完成。",
       "把当前项目 A 页面或视图的完整功能迁移到 B，并回归源入口和共享消费者。",
       "把现有 Web 功能迁移到 Electron、Tauri、iOS 或 Android 客户端并完成平台验收。"
     ]

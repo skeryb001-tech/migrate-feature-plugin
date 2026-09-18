@@ -8,17 +8,29 @@ import re
 import sys
 from pathlib import Path
 
-from migrationSpec import CHECKPOINTS, MODES, PLATFORMS, specification_errors
+from migrationSpec import (
+    CHECKPOINTS,
+    MODES,
+    PARITY_MODES,
+    PLATFORMS,
+    specification_errors,
+)
 
 
 REQUIRED_FIELDS = {
     "report_schema",
     "migration_mode",
     "platform_mode",
+    "parity_mode",
     "source",
     "target",
     "generated_at_utc",
     "enhanced_reason",
+    "source_inventory",
+    "feature_matrix",
+    "route_activation",
+    "unimplemented_items",
+    "adapted_items",
     "source_baseline",
     "target_baseline",
     "target_rules",
@@ -243,6 +255,50 @@ def validate_visual(
     return False
 
 
+def parse_non_negative_int(value: str, field_name: str, errors: list[str]) -> int:
+    """解析严格迁移的非负计数字段。"""
+
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        errors.append(f"{field_name} 必须为非负整数")
+        return -1
+    if parsed < 0:
+        errors.append(f"{field_name} 必须为非负整数")
+        return -1
+    return parsed
+
+
+def validate_parity(fields: dict[str, str], errors: list[str]) -> tuple[bool, int]:
+    """校验适配/严格一致性字段，返回待补路由证据和未实现项数量。"""
+
+    parity_mode = fields.get("parity_mode", "").strip().upper()
+    if parity_mode not in PARITY_MODES:
+        errors.append("parity_mode 必须为 ADAPTED 或 STRICT")
+        return False, -1
+
+    unimplemented_items = parse_non_negative_int(
+        fields.get("unimplemented_items", ""), "unimplemented_items", errors
+    )
+    parse_non_negative_int(fields.get("adapted_items", ""), "adapted_items", errors)
+
+    if parity_mode != "STRICT":
+        return False, unimplemented_items
+
+    for field_name in ("source_inventory", "feature_matrix"):
+        if not has_evidence(fields.get(field_name, "")):
+            errors.append(f"严格模式字段 {field_name} 缺少源依赖闭包或功能矩阵证据")
+
+    route_activation = fields.get("route_activation", "").strip().upper()
+    if route_activation not in {"PASS", "PENDING", "BLOCKED"}:
+        errors.append("严格模式 route_activation 必须为 PASS、PENDING 或 BLOCKED")
+    if route_activation == "BLOCKED":
+        errors.append("严格模式目标入口未激活或路由存在阻断项")
+    if unimplemented_items > 0:
+        errors.append(f"严格模式仍有 {unimplemented_items} 个未实现项")
+    return route_activation == "PENDING", unimplemented_items
+
+
 def validate_report(content: str) -> tuple[list[str], bool]:
     """返回校验错误及是否为合法 CODE_ONLY。"""
 
@@ -292,6 +348,7 @@ def validate_report(content: str) -> tuple[list[str], bool]:
         errors.append("blocking_issues 必须为非负整数")
 
     validate_checkpoints(content, errors)
+    parity_pending, unimplemented_items = validate_parity(fields, errors)
     runtime_pending = validate_runtime(fields, platform, errors)
     visual_pending = validate_visual(fields, platform, errors)
     if (
@@ -299,11 +356,14 @@ def validate_report(content: str) -> tuple[list[str], bool]:
         and fields.get("runtime_required", "").strip().upper() != "YES"
     ):
         errors.append("visual_required=YES 时 runtime_required 也必须为 YES")
-    pending = runtime_pending or visual_pending
+    pending = parity_pending or runtime_pending or visual_pending
 
     conclusion = fields.get("final_conclusion", "").strip().upper()
     if conclusion not in {"PASS", "CODE_ONLY", "BLOCKED"}:
         errors.append("final_conclusion 必须为 PASS、CODE_ONLY 或 BLOCKED")
+    elif unimplemented_items > 0:
+        if conclusion != "BLOCKED":
+            errors.append("严格模式存在未实现项时 final_conclusion 必须为 BLOCKED")
     elif blocking_issues > 0:
         if conclusion != "BLOCKED":
             errors.append("存在阻断项时 final_conclusion 必须为 BLOCKED")

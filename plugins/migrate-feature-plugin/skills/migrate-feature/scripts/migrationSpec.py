@@ -47,6 +47,12 @@ MODES = {
 }
 
 
+PARITY_MODES = {
+    "ADAPTED": "目标适配迁移",
+    "STRICT": "严格完整迁移",
+}
+
+
 PLATFORMS: dict[str, PlatformSpec] = {
     "web-frontend": {
         "title": "Web 前端",
@@ -95,6 +101,9 @@ def specification_errors() -> list[str]:
 
     if set(MODES) != {"cross-project", "cross-page"}:
         errors.append("迁移模式必须包含且只包含 cross-project、cross-page")
+
+    if set(PARITY_MODES) != {"ADAPTED", "STRICT"}:
+        errors.append("一致性模式必须包含且只包含 ADAPTED、STRICT")
 
     expected_platforms = {"web-frontend", "hybrid-client", "native-client"}
     if set(PLATFORMS) != expected_platforms:

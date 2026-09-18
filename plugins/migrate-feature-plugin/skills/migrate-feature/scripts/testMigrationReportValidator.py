@@ -118,11 +118,17 @@ def build_completed_report(
         conclusion = "PASS"
 
     values = {
+        "parity_mode": "ADAPTED",
         "source_baseline": "commit=source123; command=test source",
         "target_baseline": "commit=target123; status=dirty files preserved",
         "target_rules": "target AGENTS.md and adjacent modules",
         "migration_scope": "upload trigger through service result",
         "target_mapping": "source responsibilities mapped to target modules",
+        "source_inventory": "NOT_REQUIRED: focused mapping; evidence=single logic entry",
+        "feature_matrix": "NOT_REQUIRED: focused mapping; evidence=single logic entry",
+        "route_activation": "PASS",
+        "unimplemented_items": "0",
+        "adapted_items": "0",
         "blocking_issues": str(blocking_issues),
         "runtime_required": "YES" if runtime_required else "NO",
         "runtime_verified": runtime_verified,
@@ -140,6 +146,32 @@ def build_completed_report(
     for field_name, value in values.items():
         content = replace_field(content, field_name, value)
     return complete_checkpoints(content)
+
+
+def build_strict_report(*, unimplemented_items: int = 0, route_activation: str = "PASS") -> str:
+    """构造严格模式报告，覆盖完整迁移阻断分支。"""
+
+    content = build_completed_report(
+        "web-frontend",
+        runtime_required=False,
+        visual_required=False,
+    )
+    values = {
+        "parity_mode": "STRICT",
+        "source_inventory": "source entry and recursive dependencies; evidence=inventory.md",
+        "feature_matrix": "feature rows=5; statuses=PRESERVED,ADAPTED; evidence=matrix.md",
+        "route_activation": route_activation,
+        "unimplemented_items": str(unimplemented_items),
+        "adapted_items": "1",
+        "final_conclusion": (
+            "BLOCKED" if unimplemented_items
+            else "CODE_ONLY" if route_activation == "PENDING"
+            else "PASS"
+        ),
+    }
+    for field_name, value in values.items():
+        content = replace_field(content, field_name, value)
+    return content
 
 
 def run_validator(report: str) -> subprocess.CompletedProcess[str]:
@@ -212,6 +244,16 @@ def main() -> int:
             1,
         ),
         ("blocking issue returns failure", blocked, 1),
+        (
+            "strict mode rejects missing feature",
+            build_strict_report(unimplemented_items=1),
+            1,
+        ),
+        (
+            "strict mode accepts complete matrix",
+            build_strict_report(),
+            0,
+        ),
     ]
 
     failures: list[str] = []

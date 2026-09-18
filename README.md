@@ -4,6 +4,8 @@
 
 它不是代码复制器，而是一套以目标项目为优先的迁移流程：先追踪真实调用链，再复用目标能力，最后按风险完成验证。
 
+当需求包含“完整功能、原样迁移、所有功能、一比一”等表述时，会自动进入严格迁移模式：先盘点源页面的组件、状态、API、鉴权、支付、额度、路由、埋点、资源和生命周期，再逐项建立功能矩阵。存在未实现功能或目标路由未激活时，验收会明确阻断，不会把静态页面近似实现当作完成。
+
 快速上手说明见：[PROMOTION.md](PROMOTION.md)。
 
 ## 安装
@@ -13,7 +15,9 @@
 在 Codex 客户端新建一个任务，点击下面代码块右上角的复制按钮，直接粘贴并发送：
 
 ```text
-[skeryb001-tech/migrate-feature-plugin](https://github.com/skeryb001-tech/migrate-feature-plugin) 请帮我通过 Codex 终端安装或更新这个插件。如果需要执行命令或访问 GitHub，请先请求权限；不要修改当前项目业务代码。
+[skeryb001-tech/migrate-feature-plugin](https://github.com/skeryb001-tech/migrate-feature-plugin)
+请帮我通过 Codex 终端安装或更新这个插件。如果需要执行命令或访问 GitHub，请先请求权限；不要修改当前项目业务代码。
+注意：迁移过程中源项目的目标迁移功能需要完全1:1的适配迁移。
 ```
 
 Codex 会根据 GitHub 仓库完成插件安装。安装完成后重新打开或新建一个 Codex 任务，即可使用 `$migrate-feature`。
@@ -156,4 +160,4 @@ PROMOTION.md                                     # 推广与快速上手
 
 ## 版本
 
-当前版本：`1.4.0`
+当前版本：`1.5.0`

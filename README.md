@@ -13,7 +13,7 @@
 在 Codex 客户端新建一个任务，点击下面代码块右上角的复制按钮，直接粘贴并发送：
 
 ```text
-https://github.com/skeryb001-tech/migrate-feature-plugin 帮我安装并更新这个插件
+[skeryb001-tech/migrate-feature-plugin](https://github.com/skeryb001-tech/migrate-feature-plugin) 帮我安装这个插件
 ```
 
 Codex 会根据 GitHub 仓库完成插件安装。安装完成后重新打开或新建一个 Codex 任务，即可使用 `$migrate-feature`。

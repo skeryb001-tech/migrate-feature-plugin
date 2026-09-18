@@ -53,6 +53,27 @@ REQUIRED_FIELDS = {
 
 PLACEHOLDER_PATTERN = re.compile(r"\b(?:TODO|TBD)\b|<[^>]+>", re.IGNORECASE)
 VISUAL_EVIDENCE_KEYS = ("screenshot=", "rendered_style=", "viewport=", "geometry=")
+PARITY_STATUS_PATTERN = re.compile(
+    r"\b(?:PRESERVED|ADAPTED|MIGRATED|MISSING)\b", re.IGNORECASE
+)
+SOURCE_RENDERING_MARKERS = (
+    "source_render",
+    "source_template",
+    "source_component",
+    "源渲染",
+    "源模板",
+    "源组件",
+)
+TARGET_RENDERING_MARKERS = (
+    "target_render",
+    "target_template",
+    "target_component",
+    "目标渲染",
+    "目标模板",
+    "目标组件",
+)
+RENDERING_MAPPING_MARKERS = ("mapping", "map=", "映射", "对照", "->", "→")
+RENDERING_EVIDENCE_PATTERN = re.compile(r"evidence\s*[:=]|证据\s*[:=]", re.IGNORECASE)
 
 
 def parse_args() -> argparse.Namespace:
@@ -269,6 +290,27 @@ def parse_non_negative_int(value: str, field_name: str, errors: list[str]) -> in
     return parsed
 
 
+def contains_marker(value: str, markers: tuple[str, ...]) -> bool:
+    normalized = value.lower()
+    return any(marker.lower() in normalized for marker in markers)
+
+
+def validate_rendering_contract(value: str, errors: list[str]) -> None:
+    """确保严格模式记录了源/目标渲染映射和可复现证据。"""
+
+    if not has_evidence(value):
+        errors.append("严格模式字段 rendering_contract 缺少源到目标渲染契约证据")
+        return
+    if not contains_marker(value, SOURCE_RENDERING_MARKERS):
+        errors.append("rendering_contract 缺少源渲染入口、模板或组件映射")
+    if not contains_marker(value, TARGET_RENDERING_MARKERS):
+        errors.append("rendering_contract 缺少目标渲染入口、模板或组件映射")
+    if not contains_marker(value, RENDERING_MAPPING_MARKERS):
+        errors.append("rendering_contract 缺少源到目标渲染映射说明")
+    if not RENDERING_EVIDENCE_PATTERN.search(value):
+        errors.append("rendering_contract 缺少可复现 evidence 证据")
+
+
 def validate_parity(fields: dict[str, str], errors: list[str]) -> tuple[bool, int]:
     """校验适配/严格一致性字段，返回待补路由证据和未实现项数量。"""
 
@@ -285,9 +327,16 @@ def validate_parity(fields: dict[str, str], errors: list[str]) -> tuple[bool, in
     if parity_mode != "STRICT":
         return False, unimplemented_items
 
-    for field_name in ("source_inventory", "feature_matrix"):
+    for field_name in ("source_inventory", "feature_matrix", "rendering_contract"):
         if not has_evidence(fields.get(field_name, "")):
-            errors.append(f"严格模式字段 {field_name} 缺少源依赖闭包或功能矩阵证据")
+            errors.append(f"严格模式字段 {field_name} 缺少有效证据")
+
+    feature_matrix = fields.get("feature_matrix", "")
+    if not PARITY_STATUS_PATTERN.search(feature_matrix):
+        errors.append(
+            "严格模式 feature_matrix 必须为每项记录 PRESERVED、ADAPTED、MIGRATED 或 MISSING 状态"
+        )
+    validate_rendering_contract(fields.get("rendering_contract", ""), errors)
 
     route_activation = fields.get("route_activation", "").strip().upper()
     if route_activation not in {"PASS", "PENDING", "BLOCKED"}:

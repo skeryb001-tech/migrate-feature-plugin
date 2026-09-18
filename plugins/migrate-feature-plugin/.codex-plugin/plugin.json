@@ -1,7 +1,7 @@
 {
   "name": "migrate-feature-plugin",
-  "version": "1.5.0",
-  "description": "风险自适应、行为等价、目标优先的 Web 与客户端功能迁移；完整/原样/一比一请求强制源依赖闭包、功能矩阵、路由激活和缺失项阻断。",
+  "version": "1.6.0",
+  "description": "风险自适应、行为与 UI 等价、目标优先的 Web 与客户端功能迁移；完整/原样/一比一请求强制源依赖闭包、功能矩阵、源到目标渲染契约、路由激活和缺失项阻断。",
   "author": {
     "name": "skeryb001-tech",
     "url": "https://github.com/skeryb001-tech"
@@ -20,7 +20,7 @@
   "interface": {
     "displayName": "风险自适应功能迁移",
     "shortDescription": "风险自适应的 Web 与客户端行为/UI 等价迁移流程",
-    "longDescription": "以五步主流程和 C1-C4 检查点迁移 Web 与客户端功能，保持源业务行为与必要 UI 等价并按目标结构落盘。完整功能、原样、所有功能和一比一请求会强制建立源依赖闭包、功能矩阵、目标路由激活证明，并对未实现项阻断验收。",
+    "longDescription": "以五步主流程和 C1-C4 检查点迁移 Web 与客户端功能，保持源业务行为与 UI 等价并按目标结构落盘。完整功能、原样、所有功能和一比一请求会强制建立源依赖闭包、功能矩阵、源到目标渲染契约、目标路由激活证明，并对未实现项和未经证明的近似替代阻断验收。",
     "developerName": "skeryb001-tech",
     "category": "Productivity",
     "capabilities": [

@@ -14,6 +14,7 @@ from migrationSpec import CHECKPOINTS
 
 
 SCRIPT_PATH = Path(__file__).with_name("validateMigrationReport.py")
+GENERATOR_PATH = Path(__file__).with_name("createMigrationReport.py")
 
 
 RUNTIME_FIXTURES = {
@@ -126,6 +127,7 @@ def build_completed_report(
         "target_mapping": "source responsibilities mapped to target modules",
         "source_inventory": "NOT_REQUIRED: focused mapping; evidence=single logic entry",
         "feature_matrix": "NOT_REQUIRED: focused mapping; evidence=single logic entry",
+        "rendering_contract": "NOT_REQUIRED: no visible rendering change; evidence=logic-only mapping",
         "route_activation": "PASS",
         "unimplemented_items": "0",
         "adapted_items": "0",
@@ -160,6 +162,10 @@ def build_strict_report(*, unimplemented_items: int = 0, route_activation: str =
         "parity_mode": "STRICT",
         "source_inventory": "source entry and recursive dependencies; evidence=inventory.md",
         "feature_matrix": "feature rows=5; statuses=PRESERVED,ADAPTED; evidence=matrix.md",
+        "rendering_contract": (
+            "source_render_entry=src/Home.vue; target_render_entry=target/Home.vue; "
+            "mapping=template, styles and interactions compared; evidence=render-diff.md"
+        ),
         "route_activation": route_activation,
         "unimplemented_items": str(unimplemented_items),
         "adapted_items": "1",
@@ -184,6 +190,39 @@ def run_validator(report: str) -> subprocess.CompletedProcess[str]:
             capture_output=True,
             text=True,
         )
+
+
+def run_generator(parity_mode: str) -> tuple[subprocess.CompletedProcess[str], str]:
+    """验证命令行生成器能把一致性模式写入报告。"""
+
+    with tempfile.TemporaryDirectory() as directory:
+        report_path = Path(directory) / "generated-report.md"
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-B",
+                str(GENERATOR_PATH),
+                "--mode",
+                "cross-project",
+                "--platform",
+                "web-frontend",
+                "--source",
+                "/source-a",
+                "--target",
+                "/target-b",
+                "--reason",
+                "strict rendering contract",
+                "--parity-mode",
+                parity_mode,
+                "--output",
+                str(report_path),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        content = report_path.read_text(encoding="utf-8") if report_path.exists() else ""
+        return result, content
 
 
 def main() -> int:
@@ -250,6 +289,24 @@ def main() -> int:
             1,
         ),
         (
+            "strict mode rejects missing rendering contract",
+            replace_field(
+                build_strict_report(),
+                "rendering_contract",
+                "NOT_REQUIRED: no visible change; evidence=logic-only",
+            ),
+            1,
+        ),
+        (
+            "strict mode rejects feature matrix without status",
+            replace_field(
+                build_strict_report(),
+                "feature_matrix",
+                "feature rows=5; evidence=matrix.md",
+            ),
+            1,
+        ),
+        (
             "strict mode accepts complete matrix",
             build_strict_report(),
             0,
@@ -266,6 +323,16 @@ def main() -> int:
             )
         else:
             print(f"PASS: {name} -> exit {result.returncode}")
+
+    generated_result, generated_content = run_generator("STRICT")
+    if generated_result.returncode != 0 or "- parity_mode: STRICT" not in generated_content:
+        failures.append(
+            "strict parity mode generation: "
+            f"expected report field, actual exit={generated_result.returncode}; "
+            f"stdout={generated_result.stdout!r}; stderr={generated_result.stderr!r}"
+        )
+    else:
+        print("PASS: strict parity mode generation -> report field written")
 
     if failures:
         for failure in failures:

@@ -1,6 +1,6 @@
 ---
 name: migrate-feature
-description: 迁移完整 Web 前端或客户端功能，保持业务行为、数据契约、交互和必要的 UI 等价，同时复用目标能力并按目标结构落盘。用于 cross-project、cross-page/跨视图迁移，以及 Vue/React/Web、Electron/Tauri/WebView、iOS/Android、SwiftUI/Compose、Flutter/React Native 功能移植或跨技术栈重建；对“完整功能、原样、所有功能、一比一”请求强制执行源依赖闭包、功能矩阵、路由激活和缺失项阻断验收。
+description: 迁移完整 Web 前端或客户端功能，保持业务行为、数据契约、交互和 UI 等价，同时复用目标能力并按目标结构落盘。用于 cross-project、cross-page/跨视图迁移，以及 Vue/React/Web、Electron/Tauri/WebView、iOS/Android、SwiftUI/Compose、Flutter/React Native 功能移植或跨技术栈重建；对“完整功能、原样、所有功能、一比一”请求强制执行源依赖闭包、功能矩阵、源到目标渲染契约、路由激活和缺失项阻断验收。
 ---
 
 # Web 与客户端功能迁移
@@ -34,10 +34,18 @@ description: 迁移完整 Web 前端或客户端功能，保持业务行为、�
 3. **目标入口激活**：确认目标文件实际映射的 URL、locale 前缀、layout 和入口导航；“代码已写入但用户访问不到”属于未完成。
 4. **缺失项阻断**：严格模式下 `MISSING`、未决的数据/权限/支付分支、未激活路由或未经证明的等价替换都计入 `unimplemented_items`；数量大于 0 时结论必须为 `BLOCKED`。
 5. **复用等价证明**：目标组件只能在输入、输出、状态、交互、错误和副作用均覆盖源职责时标记 `PRESERVED`；否则只能标记 `ADAPTED` 并记录用户可感知差异。
+6. **源渲染契约**：源项目已有可见模板、组件、样式、数据源或交互实现时，它们是 UI 基准。必须把每个可见功能区记录为“源渲染入口 → 目标渲染入口”，并说明模板/DOM、CSS/布局、数据/API、状态、交互、错误和副作用的等价证据。目标同名或相似组件不能自动视为等价；未证明等价时，优先迁入源实现，或标记为 `ADAPTED` 并记录差异，不能标记为 `PRESERVED` 或完成。
+
+严格模式的 `rendering_contract` 至少包含：
+
+- 源渲染入口、源模板/组件和源数据源。
+- 目标渲染入口，以及复用、适配或迁入决策。
+- DOM/结构、CSS/几何、状态、交互、错误、API 参数/响应和副作用的对照证据。
+- 每个用户可见差异及其 `ADAPTED` 或 `MISSING` 状态；没有差异也要写明证据。
 
 严格模式开始写入前必须先完成 C1/C2 及源依赖闭包；闭包不完整、功能矩阵无法逐行落点或目标入口不明确时先停止写入，不得用“目标已有类似组件”代替证据。
 
-增强验收时，在大范围写入前创建精简报告：
+增强验收时，在大范围写入前创建精简报告。完整/原样/一比一迁移必须显式使用 `--parity-mode STRICT`：
 
 ```bash
 python3 scripts/createMigrationReport.py \
@@ -46,6 +54,7 @@ python3 scripts/createMigrationReport.py \
   --source <source> \
   --target <target> \
   --reason <升级原因> \
+  --parity-mode STRICT \
   --output <report.md>
 ```
 
@@ -59,7 +68,7 @@ python3 scripts/createMigrationReport.py \
 
 ### 2. 做目标映射
 
-先搜索目标已有实现，再把源职责按“复用 → 最窄适配 → 最小迁入”映射到目标结构。每个功能矩阵行必须有目标落点、复用/适配理由和消费者影响。只有修改共享能力时才扫描其直接、间接、动态和自动发现消费者；只有存在文件迁入或路径碰撞风险时才运行：
+先搜索目标已有实现，再把源职责按“复用 → 最窄适配 → 最小迁入”映射到目标结构。每个功能矩阵行必须有目标落点、复用/适配理由和消费者影响。每个可见功能区还必须补充源渲染入口、目标渲染入口和等价证据；没有证据时不得用目标近似组件替代源模板。只有修改共享能力时才扫描其直接、间接、动态和自动发现消费者；只有存在文件迁入或路径碰撞风险时才运行：
 
 ```bash
 python3 scripts/scanMigrationConflicts.py <source-feature-root> <target-root>
@@ -75,7 +84,7 @@ python3 scripts/scanMigrationConflicts.py <source-feature-root> <target-root>
 
 执行目标项目针对改动范围的 lint、typecheck、测试或构建，并用相同输入验证主流程、关键失败分支、请求/bridge 参数与副作用次数。仅在涉及 UI 时验证对应状态和目标运行时；仅在影响共享能力时回归消费者；仅在导航或生命周期变化时验证进入、离开、刷新/恢复和清理。
 
-严格模式额外检查：源依赖闭包没有孤立节点；功能矩阵不存在 `MISSING`；路由/locale/layout 已从文件系统或路由表确认；复用项有输入/输出/状态/副作用证据。静态检查、功能运行和视觉运行证据分别报告，不能互相替代。运行环境缺失时明确结论为 `CODE_ONLY`，不要声称已完成运行时验收。
+严格模式额外检查：源依赖闭包没有孤立节点；功能矩阵不存在 `MISSING`；每个功能区都有 `rendering_contract` 的源/目标渲染映射和证据；路由/locale/layout 已从文件系统或路由表确认；复用项有输入/输出/状态/副作用证据。静态检查、功能运行和视觉运行证据分别报告，不能互相替代。运行环境缺失时明确结论为 `CODE_ONLY`，不要声称已完成运行时验收。
 
 ### 5. 交付
 
@@ -117,6 +126,7 @@ python3 scripts/validateMigrationReport.py <report.md>
 - C1–C4 均成立，没有未解决阻断项。
 - 主流程和本次范围内的关键分支行为等价，目标既有受影响消费者无新增回归。
 - 严格模式的源依赖闭包、功能矩阵、目标路由激活和 `unimplemented_items=0` 均成立。
+- 严格模式的 `rendering_contract` 已逐区记录源/目标渲染入口，并证明模板/DOM、样式/几何、数据、状态、交互、错误和副作用等价；未证明等价的替换不得作为完成项。
 - 相关目标项目检查通过；无法运行的检查有原始阻塞原因和残余风险。
 - 涉及 UI 时，真实目标运行时覆盖用户可见的关键状态。用户要求精确一比一时，固定数据、设备/视口、scale、主题、语言和字体，保留截图、渲染样式与几何对照；项目或用户给出的误差阈值优先。
 

@@ -12,12 +12,15 @@
 parity_mode: STRICT
 source_inventory: <入口递归闭包，包含组件、状态、API/Bridge、鉴权/支付/额度、路由、埋点、资源和生命周期>
 feature_matrix: <功能矩阵位置或逐行摘要；每项必须标记 PRESERVED、ADAPTED、MIGRATED 或 MISSING>
+rendering_contract: <逐个可见功能区记录源渲染入口、目标渲染入口、复用/适配/迁入决策和等价证据>
 route_activation: PASS|PENDING|BLOCKED
 unimplemented_items: <非负整数>
 adapted_items: <非负整数>
 ```
 
 `unimplemented_items` 统计 `MISSING`、没有目标落点、没有入口激活证明、未决关键分支以及未经等价证明的替换。严格模式下数量大于 0 时必须为 `BLOCKED`；不能用 `CODE_ONLY` 掩盖功能缺失。`adapted_items` 只统计已实现但存在明确目标差异的职责，不等于缺失项。
+
+`rendering_contract` 是源渲染实现到目标渲染实现的硬性映射，不是“有相似组件”的描述。每个可见功能区至少要说明源模板/组件、源数据源、目标模板/组件、DOM/结构、CSS/几何、状态、交互、错误、API 参数/响应和副作用的对照证据。源项目已有完整模板时，目标同名或相似组件只有在这些职责全部等价时才能标记 `PRESERVED`；未证明等价时必须迁入源实现，或标记 `ADAPTED` 并记录用户可感知差异。
 
 ## 1. 有效证据
 

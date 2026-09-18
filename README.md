@@ -1,10 +1,10 @@
 # Migrate Feature Marketplace
 
-`migrate-feature-plugin` 是一个 Codex 插件，用于将完整功能迁移到另一个项目、页面或客户端，并保持业务行为、数据契约、交互和必要 UI 等价。
+`migrate-feature-plugin` 是一个 Codex 插件，用于将完整功能迁移到另一个项目、页面或客户端，并保持业务行为、数据契约、交互和 UI 等价。
 
 它不是代码复制器，而是一套以目标项目为优先的迁移流程：先追踪真实调用链，再复用目标能力，最后按风险完成验证。
 
-当需求包含“完整功能、原样迁移、所有功能、一比一”等表述时，会自动进入严格迁移模式：先盘点源页面的组件、状态、API、鉴权、支付、额度、路由、埋点、资源和生命周期，再逐项建立功能矩阵。存在未实现功能或目标路由未激活时，验收会明确阻断，不会把静态页面近似实现当作完成。
+当需求包含“完整功能、原样迁移、所有功能、一比一”等表述时，会自动进入严格迁移模式：先盘点源页面的组件、模板、样式、状态、API、鉴权、支付、额度、路由、埋点、资源和生命周期，再逐项建立功能矩阵和“源渲染入口 → 目标渲染入口”的渲染契约。存在未实现功能、未经证明的相似组件替代或目标路由未激活时，验收会明确阻断，不会把静态页面近似实现当作完成。
 
 快速上手说明见：[PROMOTION.md](PROMOTION.md)。
 
@@ -141,6 +141,7 @@ python3 plugins/migrate-feature-plugin/skills/migrate-feature/scripts/createMigr
   --source /path/to/source \
   --target /path/to/target \
   --reason "跨运行时或正式验收" \
+  --parity-mode STRICT \
   --output /tmp/migration-report.md
 
 python3 plugins/migrate-feature-plugin/skills/migrate-feature/scripts/validateMigrationReport.py \
@@ -160,4 +161,4 @@ PROMOTION.md                                     # 推广与快速上手
 
 ## 版本
 
-当前版本：`1.5.0`
+当前版本：`1.6.0`

@@ -8,7 +8,13 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from migrationSpec import CHECKPOINTS, MODES, PLATFORMS, specification_errors
+from migrationSpec import (
+    CHECKPOINTS,
+    MODES,
+    PARITY_MODES,
+    PLATFORMS,
+    specification_errors,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -22,6 +28,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--source", required=True, help="源项目、页面或功能入口")
     parser.add_argument("--target", required=True, help="目标项目、页面或功能入口")
     parser.add_argument("--reason", required=True, help="升级为增强验收的原因")
+    parser.add_argument(
+        "--parity-mode",
+        choices=sorted(PARITY_MODES),
+        default="ADAPTED",
+        help="一致性模式；完整/原样/一比一迁移使用 STRICT",
+    )
     parser.add_argument("--output", required=True, help="输出 Markdown 文件")
     parser.add_argument(
         "--force",
@@ -57,6 +69,7 @@ def build_report(
     source: str,
     target: str,
     reason: str,
+    parity_mode: str = "ADAPTED",
 ) -> str:
     """生成增强迁移报告正文。"""
 
@@ -70,13 +83,14 @@ def build_report(
 - report_schema: 2
 - migration_mode: {mode}
 - platform_mode: {platform}
-- parity_mode: ADAPTED
+- parity_mode: {parity_mode}
 - source: {source}
 - target: {target}
 - generated_at_utc: {generated_at}
 - enhanced_reason: {reason}
 - source_inventory: TODO
 - feature_matrix: TODO
+- rendering_contract: TODO
 - route_activation: TODO
 - unimplemented_items: TODO
 - adapted_items: TODO
@@ -170,7 +184,14 @@ def main() -> int:
         if not output_path.parent.exists():
             raise FileNotFoundError(f"输出目录不存在：{output_path.parent}")
         output_path.write_text(
-            build_report(args.mode, args.platform, source, target, reason),
+            build_report(
+                args.mode,
+                args.platform,
+                source,
+                target,
+                reason,
+                args.parity_mode,
+            ),
             encoding="utf-8",
         )
     except (OSError, ValueError) as error:
@@ -180,6 +201,7 @@ def main() -> int:
     print(f"已创建增强迁移报告：{output_path}")
     print(f"迁移模式：{args.mode}")
     print(f"平台模式：{args.platform}")
+    print(f"一致性模式：{args.parity_mode}")
     return 0
 
 

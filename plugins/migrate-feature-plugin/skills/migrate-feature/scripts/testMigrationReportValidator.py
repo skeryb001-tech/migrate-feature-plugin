@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 import sys
@@ -125,6 +126,7 @@ def build_completed_report(
         "target_rules": "target AGENTS.md and adjacent modules",
         "migration_scope": "upload trigger through service result",
         "target_mapping": "source responsibilities mapped to target modules",
+        "visible_ui": "YES" if visual_required else "NO",
         "source_inventory": "NOT_REQUIRED: focused mapping; evidence=single logic entry",
         "feature_matrix": "NOT_REQUIRED: focused mapping; evidence=single logic entry",
         "rendering_contract": "NOT_REQUIRED: no visible rendering change; evidence=logic-only mapping",
@@ -150,21 +152,27 @@ def build_completed_report(
     return complete_checkpoints(content)
 
 
-def build_strict_report(*, unimplemented_items: int = 0, route_activation: str = "PASS") -> str:
+def build_strict_report(
+    *,
+    unimplemented_items: int = 0,
+    route_activation: str = "PASS",
+    visible_ui: bool = False,
+) -> str:
     """构造严格模式报告，覆盖完整迁移阻断分支。"""
 
     content = build_completed_report(
         "web-frontend",
-        runtime_required=False,
-        visual_required=False,
+        runtime_required=visible_ui,
+        visual_required=visible_ui,
     )
     values = {
         "parity_mode": "STRICT",
-        "source_inventory": "source entry and recursive dependencies; evidence=inventory.md",
-        "feature_matrix": "feature rows=5; statuses=PRESERVED,ADAPTED; evidence=matrix.md",
+        "source_inventory": "file=source-inventory.json",
+        "feature_matrix": "file=feature-matrix.json",
         "rendering_contract": (
-            "source_render_entry=src/Home.vue; target_render_entry=target/Home.vue; "
-            "mapping=template, styles and interactions compared; evidence=render-diff.md"
+            "file=rendering-contract.json"
+            if visible_ui
+            else "NOT_REQUIRED: no visible UI; evidence=logic-only migration"
         ),
         "route_activation": route_activation,
         "unimplemented_items": str(unimplemented_items),
@@ -180,10 +188,97 @@ def build_strict_report(*, unimplemented_items: int = 0, route_activation: str =
     return content
 
 
-def run_validator(report: str) -> subprocess.CompletedProcess[str]:
+def strict_artifacts(*, unimplemented_items: int = 0, visible_ui: bool = False) -> dict[str, object]:
+    """构造严格模式的结构化 JSON 证据。"""
+
+    matrix = [
+        {
+            "id": "upload-flow",
+            "source": "src/pages/upload.vue",
+            "target": "pages/upload.vue",
+            "status": "MIGRATED",
+            "unimplemented": False,
+            "evidence": "source and target call chains compared",
+        }
+    ]
+    for index in range(unimplemented_items):
+        matrix.append(
+            {
+                "id": f"missing-{index}",
+                "source": f"src/missing-{index}.vue",
+                "target": "UNIMPLEMENTED",
+                "status": "MISSING",
+                "unimplemented": True,
+                "evidence": "source feature has no target implementation",
+            }
+        )
+
+    artifacts: dict[str, object] = {
+        "source-inventory.json": [
+            {
+                "id": "upload-entry",
+                "kind": "entry",
+                "source": "src/pages/upload.vue",
+                "dependencies": ["upload-panel", "upload-api", "upload-analytics"],
+                "evidence": "recursive source inventory",
+            },
+            {
+                "id": "upload-panel",
+                "kind": "component",
+                "source": "src/components/UploadPanel.vue",
+                "dependencies": [],
+                "evidence": "recursive source inventory",
+            },
+            {
+                "id": "upload-api",
+                "kind": "api",
+                "source": "src/services/upload.ts",
+                "dependencies": [],
+                "evidence": "recursive source inventory",
+            },
+            {
+                "id": "upload-analytics",
+                "kind": "analytics",
+                "source": "src/analytics/upload.ts",
+                "dependencies": [],
+                "evidence": "recursive source inventory",
+            },
+        ],
+        "feature-matrix.json": matrix,
+    }
+    if visible_ui:
+        artifacts["rendering-contract.json"] = [
+            {
+                "id": "upload-panel",
+                "source_render": "src/pages/upload.vue",
+                "target_render": "pages/upload.vue",
+                "decision": "MIGRATED",
+                "status": "MIGRATED",
+                "template": "source template structure copied and adapted to target syntax",
+                "dom": "source and target DOM tree compared",
+                "css": "computed styles and geometry compared",
+                "data": "upload API payload and response mapping compared",
+                "state": "idle, loading, success and failure states compared",
+                "interaction": "select, submit, retry and navigation compared",
+                "error": "validation and request errors compared",
+                "side_effect": "analytics and request counts compared",
+                "evidence": "rendering diff and browser evidence",
+            }
+        ]
+    return artifacts
+
+
+def run_validator(
+    report: str,
+    artifacts: dict[str, object] | None = None,
+) -> subprocess.CompletedProcess[str]:
     with tempfile.TemporaryDirectory() as directory:
         report_path = Path(directory) / "migration-report.md"
         report_path.write_text(report, encoding="utf-8")
+        for filename, payload in (artifacts or {}).items():
+            (Path(directory) / filename).write_text(
+                json.dumps(payload), encoding="utf-8"
+            )
         return subprocess.run(
             [sys.executable, "-B", str(SCRIPT_PATH), str(report_path)],
             check=False,
@@ -253,20 +348,22 @@ def main() -> int:
     )
 
     cases = [
-        ("logic-only enhanced PASS", logic_pass, 0),
-        ("web visual PASS", visual_pass["web-frontend"], 0),
-        ("hybrid visual PASS", visual_pass["hybrid-client"], 0),
-        ("native visual PASS", visual_pass["native-client"], 0),
-        ("pending runtime CODE_ONLY", code_only, 3),
+        ("logic-only enhanced PASS", logic_pass, 0, None),
+        ("web visual PASS", visual_pass["web-frontend"], 0, None),
+        ("hybrid visual PASS", visual_pass["hybrid-client"], 0, None),
+        ("native visual PASS", visual_pass["native-client"], 0, None),
+        ("pending runtime CODE_ONLY", code_only, 3, None),
         (
             "pending runtime cannot claim PASS",
             replace_field(code_only, "final_conclusion", "PASS"),
             1,
+            None,
         ),
         (
             "web visual rejects app window",
             replace_field(visual_pass["web-frontend"], "visual_surface", "APP_WINDOW"),
             1,
+            None,
         ),
         (
             "visual evidence must include geometry",
@@ -276,46 +373,118 @@ def main() -> int:
                 "screenshot=a; rendered_style=b; viewport=c",
             ),
             1,
+            None,
         ),
         (
             "missing checkpoint",
             logic_pass.replace("| C4 | 证据 | PASS | C4 focused evidence |\n", ""),
             1,
+            None,
         ),
-        ("blocking issue returns failure", blocked, 1),
+        ("blocking issue returns failure", blocked, 1, None),
         (
             "strict mode rejects missing feature",
             build_strict_report(unimplemented_items=1),
             1,
+            strict_artifacts(unimplemented_items=1),
         ),
         (
             "strict mode rejects missing rendering contract",
             replace_field(
-                build_strict_report(),
+                build_strict_report(visible_ui=True),
                 "rendering_contract",
                 "NOT_REQUIRED: no visible change; evidence=logic-only",
             ),
             1,
+            strict_artifacts(visible_ui=True),
         ),
         (
-            "strict mode rejects feature matrix without status",
+            "strict mode rejects missing feature artifact",
             replace_field(
                 build_strict_report(),
                 "feature_matrix",
-                "feature rows=5; evidence=matrix.md",
+                "file=missing-feature-matrix.json",
             ),
             1,
+            None,
+        ),
+        (
+            "strict mode rejects feature matrix without status",
+            build_strict_report(),
+            1,
+            {
+                "source-inventory.json": strict_artifacts()["source-inventory.json"],
+                "feature-matrix.json": [
+                    {
+                        "id": "upload-flow",
+                        "source": "src/pages/upload.vue",
+                        "target": "pages/upload.vue",
+                        "unimplemented": False,
+                        "evidence": "matrix evidence",
+                    }
+                ]
+            },
+        ),
+        (
+            "strict mode rejects MISSING count mismatch",
+            build_strict_report(),
+            1,
+            {
+                "source-inventory.json": strict_artifacts()["source-inventory.json"],
+                "feature-matrix.json": strict_artifacts(unimplemented_items=1)[
+                    "feature-matrix.json"
+                ]
+            },
+        ),
+        (
+            "strict mode rejects incomplete rendering contract",
+            build_strict_report(visible_ui=True),
+            1,
+            {
+                **strict_artifacts(visible_ui=False),
+                "rendering-contract.json": [
+                    {
+                        "id": "upload-panel",
+                        "source_render": "src/pages/upload.vue",
+                        "target_render": "pages/upload.vue",
+                        "decision": "MIGRATED",
+                        "status": "MIGRATED",
+                        "evidence": "marker-only evidence",
+                    }
+                ],
+            },
+        ),
+        (
+            "strict UI cannot disable runtime and visual verification",
+            replace_field(
+                replace_field(
+                    build_strict_report(visible_ui=True),
+                    "runtime_required",
+                    "NO",
+                ),
+                "visual_required",
+                "NO",
+            ),
+            1,
+            strict_artifacts(visible_ui=True),
         ),
         (
             "strict mode accepts complete matrix",
             build_strict_report(),
             0,
+            strict_artifacts(),
+        ),
+        (
+            "strict UI accepts complete rendering contract",
+            build_strict_report(visible_ui=True),
+            0,
+            strict_artifacts(visible_ui=True),
         ),
     ]
 
     failures: list[str] = []
-    for name, report, expected_exit_code in cases:
-        result = run_validator(report)
+    for name, report, expected_exit_code, artifacts in cases:
+        result = run_validator(report, artifacts)
         if result.returncode != expected_exit_code:
             failures.append(
                 f"{name}: expected={expected_exit_code}, actual={result.returncode}; "

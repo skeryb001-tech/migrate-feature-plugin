@@ -80,7 +80,7 @@ def build_report(
 
 ## 0. 机器摘要
 
-- report_schema: 2
+- report_schema: 3
 - migration_mode: {mode}
 - platform_mode: {platform}
 - parity_mode: {parity_mode}
@@ -88,9 +88,10 @@ def build_report(
 - target: {target}
 - generated_at_utc: {generated_at}
 - enhanced_reason: {reason}
-- source_inventory: TODO
-- feature_matrix: TODO
-- rendering_contract: TODO
+- visible_ui: TODO
+- source_inventory: file=source-inventory.json
+- feature_matrix: file=feature-matrix.json
+- rendering_contract: file=rendering-contract.json
 - route_activation: TODO
 - unimplemented_items: TODO
 - adapted_items: TODO
@@ -113,7 +114,7 @@ def build_report(
 - rollback_plan: TODO
 - final_conclusion: TODO
 
-取值规则：`runtime_required` / `visual_required` 使用 `YES|NO`；对应 `verified` 使用 `YES|NO|NOT_REQUIRED`；`final_conclusion` 使用 `PASS|CODE_ONLY|BLOCKED`。
+取值规则：`visible_ui`、`runtime_required` / `visual_required` 使用 `YES|NO`；对应 `verified` 使用 `YES|NO|NOT_REQUIRED`；`final_conclusion` 使用 `PASS|CODE_ONLY|BLOCKED`。严格模式的 `source_inventory` 和 `feature_matrix` 必须引用报告目录下的 JSON 证据文件；`visible_ui=YES` 时 `rendering_contract` 也必须引用 JSON 证据文件。
 
 ## 1. 范围与调用链
 

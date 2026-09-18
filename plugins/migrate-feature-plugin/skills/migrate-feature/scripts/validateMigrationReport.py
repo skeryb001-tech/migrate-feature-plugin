@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 from migrationSpec import (
     CHECKPOINTS,
@@ -26,6 +28,7 @@ REQUIRED_FIELDS = {
     "target",
     "generated_at_utc",
     "enhanced_reason",
+    "visible_ui",
     "source_inventory",
     "feature_matrix",
     "route_activation",
@@ -51,29 +54,29 @@ REQUIRED_FIELDS = {
     "final_conclusion",
 }
 
+REPORT_SCHEMA = "3"
 PLACEHOLDER_PATTERN = re.compile(r"\b(?:TODO|TBD)\b|<[^>]+>", re.IGNORECASE)
 VISUAL_EVIDENCE_KEYS = ("screenshot=", "rendered_style=", "viewport=", "geometry=")
-PARITY_STATUS_PATTERN = re.compile(
-    r"\b(?:PRESERVED|ADAPTED|MIGRATED|MISSING)\b", re.IGNORECASE
-)
-SOURCE_RENDERING_MARKERS = (
+PARITY_STATUSES = {"PRESERVED", "ADAPTED", "MIGRATED", "MISSING"}
+MATRIX_REQUIRED_FIELDS = ("id", "source", "target", "status", "unimplemented", "evidence")
+INVENTORY_REQUIRED_FIELDS = ("id", "kind", "source", "evidence")
+RENDERING_REQUIRED_FIELDS = (
+    "id",
     "source_render",
-    "source_template",
-    "source_component",
-    "源渲染",
-    "源模板",
-    "源组件",
-)
-TARGET_RENDERING_MARKERS = (
     "target_render",
-    "target_template",
-    "target_component",
-    "目标渲染",
-    "目标模板",
-    "目标组件",
+    "decision",
+    "status",
+    "template",
+    "dom",
+    "css",
+    "data",
+    "state",
+    "interaction",
+    "error",
+    "side_effect",
+    "evidence",
 )
-RENDERING_MAPPING_MARKERS = ("mapping", "map=", "映射", "对照", "->", "→")
-RENDERING_EVIDENCE_PATTERN = re.compile(r"evidence\s*[:=]|证据\s*[:=]", re.IGNORECASE)
+RENDERING_DECISIONS = {"PRESERVED", "ADAPTED", "MIGRATED", "MISSING"}
 
 
 def parse_args() -> argparse.Namespace:
@@ -290,28 +293,181 @@ def parse_non_negative_int(value: str, field_name: str, errors: list[str]) -> in
     return parsed
 
 
-def contains_marker(value: str, markers: tuple[str, ...]) -> bool:
-    normalized = value.lower()
-    return any(marker.lower() in normalized for marker in markers)
+def parse_artifact_reference(
+    value: str,
+    field_name: str,
+    report_dir: Path,
+    errors: list[str],
+) -> Any | None:
+    """加载严格报告引用的 JSON 证据文件。"""
+
+    match = re.fullmatch(r"file=(.+)", value.strip(), re.IGNORECASE)
+    if match is None:
+        errors.append(f"{field_name} 必须使用 file=<relative-json-path> 引用结构化证据")
+        return None
+
+    raw_path = match.group(1).strip()
+    artifact_path = Path(raw_path)
+    if artifact_path.suffix.lower() != ".json":
+        errors.append(f"{field_name} 证据文件必须是 .json：{raw_path}")
+        return None
+    if not artifact_path.is_absolute():
+        artifact_path = report_dir / artifact_path
+    artifact_path = artifact_path.resolve()
+    if not artifact_path.is_file():
+        errors.append(f"{field_name} 证据文件不存在：{artifact_path}")
+        return None
+
+    try:
+        return json.loads(artifact_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        errors.append(f"{field_name} 证据文件不是有效 JSON：{artifact_path}（{error}）")
+        return None
 
 
-def validate_rendering_contract(value: str, errors: list[str]) -> None:
-    """确保严格模式记录了源/目标渲染映射和可复现证据。"""
+def validate_string_fields(
+    item: dict[str, Any],
+    required_fields: tuple[str, ...],
+    context: str,
+    errors: list[str],
+) -> None:
+    for field_name in required_fields:
+        value = item.get(field_name)
+        if not isinstance(value, str) or not value.strip():
+            errors.append(f"{context} 缺少非空字段：{field_name}")
 
-    if not has_evidence(value):
-        errors.append("严格模式字段 rendering_contract 缺少源到目标渲染契约证据")
+
+def validate_feature_matrix_artifact(
+    payload: Any,
+    expected_unimplemented: int,
+    errors: list[str],
+) -> dict[str, dict[str, Any]]:
+    """逐项校验功能矩阵，并返回按 id 索引的功能项。"""
+
+    if not isinstance(payload, list) or not payload:
+        errors.append("feature_matrix JSON 必须是非空数组")
+        return {}
+
+    items: dict[str, dict[str, Any]] = {}
+    unimplemented_count = 0
+    for index, raw_item in enumerate(payload):
+        context = f"feature_matrix[{index}]"
+        if not isinstance(raw_item, dict):
+            errors.append(f"{context} 必须是对象")
+            continue
+        validate_string_fields(
+            raw_item,
+            tuple(field for field in MATRIX_REQUIRED_FIELDS if field != "unimplemented"),
+            context,
+            errors,
+        )
+        item_id = raw_item.get("id")
+        if not isinstance(item_id, str) or not item_id.strip():
+            continue
+        if item_id in items:
+            errors.append(f"feature_matrix 存在重复 id：{item_id}")
+        items[item_id] = raw_item
+
+        status = str(raw_item.get("status", "")).upper()
+        if status not in PARITY_STATUSES:
+            errors.append(f"{context}.status 必须为 PRESERVED、ADAPTED、MIGRATED 或 MISSING")
+
+        unimplemented = raw_item.get("unimplemented")
+        if not isinstance(unimplemented, bool):
+            errors.append(f"{context}.unimplemented 必须为布尔值")
+        elif unimplemented:
+            unimplemented_count += 1
+            if status != "MISSING":
+                errors.append(f"{context} unimplemented=true 时 status 必须为 MISSING")
+        elif status == "MISSING":
+            errors.append(f"{context} status=MISSING 时 unimplemented 必须为 true")
+
+    if unimplemented_count != expected_unimplemented:
+        errors.append(
+            "feature_matrix 未实现项数量与 unimplemented_items 不一致："
+            f"{unimplemented_count} != {expected_unimplemented}"
+        )
+    return items
+
+
+def validate_source_inventory_artifact(payload: Any, errors: list[str]) -> None:
+    """校验源入口的递归依赖闭包证据。"""
+
+    if not isinstance(payload, list) or not payload:
+        errors.append("source_inventory JSON 必须是非空数组")
         return
-    if not contains_marker(value, SOURCE_RENDERING_MARKERS):
-        errors.append("rendering_contract 缺少源渲染入口、模板或组件映射")
-    if not contains_marker(value, TARGET_RENDERING_MARKERS):
-        errors.append("rendering_contract 缺少目标渲染入口、模板或组件映射")
-    if not contains_marker(value, RENDERING_MAPPING_MARKERS):
-        errors.append("rendering_contract 缺少源到目标渲染映射说明")
-    if not RENDERING_EVIDENCE_PATTERN.search(value):
-        errors.append("rendering_contract 缺少可复现 evidence 证据")
+
+    ids: set[str] = set()
+    dependencies_by_id: dict[str, list[str]] = {}
+    for index, raw_item in enumerate(payload):
+        context = f"source_inventory[{index}]"
+        if not isinstance(raw_item, dict):
+            errors.append(f"{context} 必须是对象")
+            continue
+        validate_string_fields(raw_item, INVENTORY_REQUIRED_FIELDS, context, errors)
+        if "dependencies" not in raw_item:
+            errors.append(f"{context} 缺少字段：dependencies")
+        item_id = raw_item.get("id")
+        if isinstance(item_id, str) and item_id.strip():
+            if item_id in ids:
+                errors.append(f"source_inventory 存在重复 id：{item_id}")
+            ids.add(item_id)
+        dependencies = raw_item.get("dependencies", [])
+        if not isinstance(dependencies, list) or not all(
+            isinstance(value, str) and value.strip() for value in dependencies
+        ):
+            errors.append(f"{context}.dependencies 必须是字符串数组")
+        elif isinstance(item_id, str) and item_id.strip():
+            dependencies_by_id[item_id] = dependencies
+
+    for item_id, dependencies in dependencies_by_id.items():
+        for dependency in dependencies:
+            if dependency not in ids:
+                errors.append(
+                    f"source_inventory[{item_id}] 引用了不存在的依赖 id：{dependency}"
+                )
 
 
-def validate_parity(fields: dict[str, str], errors: list[str]) -> tuple[bool, int]:
+def validate_rendering_contract_artifact(
+    payload: Any,
+    errors: list[str],
+) -> dict[str, dict[str, Any]]:
+    """逐个可见区域校验源/目标渲染契约。"""
+
+    if not isinstance(payload, list) or not payload:
+        errors.append("rendering_contract JSON 必须是非空数组")
+        return {}
+
+    items: dict[str, dict[str, Any]] = {}
+    for index, raw_item in enumerate(payload):
+        context = f"rendering_contract[{index}]"
+        if not isinstance(raw_item, dict):
+            errors.append(f"{context} 必须是对象")
+            continue
+        validate_string_fields(raw_item, RENDERING_REQUIRED_FIELDS, context, errors)
+        item_id = raw_item.get("id")
+        if not isinstance(item_id, str) or not item_id.strip():
+            continue
+        if item_id in items:
+            errors.append(f"rendering_contract 存在重复 id：{item_id}")
+        items[item_id] = raw_item
+
+        status = str(raw_item.get("status", "")).upper()
+        if status not in PARITY_STATUSES:
+            errors.append(f"{context}.status 必须为 PRESERVED、ADAPTED、MIGRATED 或 MISSING")
+        decision = str(raw_item.get("decision", "")).upper()
+        if decision not in RENDERING_DECISIONS:
+            errors.append(f"{context}.decision 必须为 PRESERVED、ADAPTED、MIGRATED 或 MISSING")
+        if status != decision:
+            errors.append(f"{context}.status 必须与 decision 一致")
+    return items
+
+
+def validate_parity(
+    fields: dict[str, str],
+    report_dir: Path,
+    errors: list[str],
+) -> tuple[bool, int]:
     """校验适配/严格一致性字段，返回待补路由证据和未实现项数量。"""
 
     parity_mode = fields.get("parity_mode", "").strip().upper()
@@ -324,19 +480,55 @@ def validate_parity(fields: dict[str, str], errors: list[str]) -> tuple[bool, in
     )
     parse_non_negative_int(fields.get("adapted_items", ""), "adapted_items", errors)
 
+    visible_ui = parse_yes_no(fields.get("visible_ui", ""), "visible_ui", errors)
     if parity_mode != "STRICT":
         return False, unimplemented_items
 
-    for field_name in ("source_inventory", "feature_matrix", "rendering_contract"):
+    for field_name in ("source_inventory", "feature_matrix"):
         if not has_evidence(fields.get(field_name, "")):
             errors.append(f"严格模式字段 {field_name} 缺少有效证据")
 
-    feature_matrix = fields.get("feature_matrix", "")
-    if not PARITY_STATUS_PATTERN.search(feature_matrix):
-        errors.append(
-            "严格模式 feature_matrix 必须为每项记录 PRESERVED、ADAPTED、MIGRATED 或 MISSING 状态"
+    source_inventory_payload = parse_artifact_reference(
+        fields.get("source_inventory", ""), "source_inventory", report_dir, errors
+    )
+    validate_source_inventory_artifact(source_inventory_payload, errors)
+    feature_matrix_payload = parse_artifact_reference(
+        fields.get("feature_matrix", ""), "feature_matrix", report_dir, errors
+    )
+    matrix_items = validate_feature_matrix_artifact(
+        feature_matrix_payload, unimplemented_items, errors
+    )
+
+    rendering_contract = fields.get("rendering_contract", "").strip()
+    if visible_ui is True:
+        rendering_payload = parse_artifact_reference(
+            rendering_contract, "rendering_contract", report_dir, errors
         )
-    validate_rendering_contract(fields.get("rendering_contract", ""), errors)
+        rendering_items = validate_rendering_contract_artifact(rendering_payload, errors)
+        missing_rendering_ids = {
+            item_id
+            for item_id, item in rendering_items.items()
+            if str(item.get("status", "")).upper() == "MISSING"
+        }
+        missing_matrix_ids = {
+            item_id
+            for item_id, item in matrix_items.items()
+            if str(item.get("status", "")).upper() == "MISSING"
+        }
+        if missing_rendering_ids - missing_matrix_ids:
+            errors.append(
+                "rendering_contract 的 MISSING 区域必须在 feature_matrix 中对应同 id："
+                + ", ".join(sorted(missing_rendering_ids - missing_matrix_ids))
+            )
+        if fields.get("runtime_required", "").strip().upper() != "YES":
+            errors.append("严格模式包含 UI 时 runtime_required 必须为 YES")
+        if fields.get("visual_required", "").strip().upper() != "YES":
+            errors.append("严格模式包含 UI 时 visual_required 必须为 YES")
+    elif visible_ui is False:
+        if not rendering_contract.upper().startswith("NOT_REQUIRED:"):
+            errors.append("visible_ui=NO 时 rendering_contract 必须为 NOT_REQUIRED: ...")
+        if fields.get("visual_required", "").strip().upper() != "NO":
+            errors.append("visible_ui=NO 时 visual_required 必须为 NO")
 
     route_activation = fields.get("route_activation", "").strip().upper()
     if route_activation not in {"PASS", "PENDING", "BLOCKED"}:
@@ -348,7 +540,7 @@ def validate_parity(fields: dict[str, str], errors: list[str]) -> tuple[bool, in
     return route_activation == "PENDING", unimplemented_items
 
 
-def validate_report(content: str) -> tuple[list[str], bool]:
+def validate_report(content: str, report_dir: Path | None = None) -> tuple[list[str], bool]:
     """返回校验错误及是否为合法 CODE_ONLY。"""
 
     errors = specification_errors()
@@ -371,8 +563,8 @@ def validate_report(content: str) -> tuple[list[str], bool]:
         if not has_evidence(fields[field_name]):
             errors.append(f"机器字段仍为空或包含占位符：{field_name}")
 
-    if fields.get("report_schema") != "2":
-        errors.append("report_schema 必须为 2")
+    if fields.get("report_schema") != REPORT_SCHEMA:
+        errors.append(f"report_schema 必须为 {REPORT_SCHEMA}")
 
     mode = fields.get("migration_mode", "")
     if mode not in MODES:
@@ -397,7 +589,9 @@ def validate_report(content: str) -> tuple[list[str], bool]:
         errors.append("blocking_issues 必须为非负整数")
 
     validate_checkpoints(content, errors)
-    parity_pending, unimplemented_items = validate_parity(fields, errors)
+    parity_pending, unimplemented_items = validate_parity(
+        fields, report_dir or Path.cwd(), errors
+    )
     runtime_pending = validate_runtime(fields, platform, errors)
     visual_pending = validate_visual(fields, platform, errors)
     if (
@@ -434,7 +628,7 @@ def main() -> int:
         print(f"读取报告失败：{error}", file=sys.stderr)
         return 2
 
-    errors, is_code_only = validate_report(content)
+    errors, is_code_only = validate_report(content, report_path.parent)
     if errors:
         print(f"增强迁移报告校验失败，共 {len(errors)} 项：", file=sys.stderr)
         for error in errors:

@@ -39,7 +39,7 @@
 
 ## 需要视觉验收时
 
-仅当迁移包含用户可见 UI，且用户或项目要求正式视觉验收时记录：
+严格模式中只要 `visible_ui=YES` 就必须记录；非严格模式仍仅当迁移包含用户可见 UI，且用户或项目要求正式视觉验收时记录：
 
 ```text
 visual_verified: YES
@@ -49,4 +49,4 @@ visual_unit: <CSS_PX / PT / DP / LOGICAL_PX>
 visual_evidence: screenshot=<源/目标>; rendered_style=<样式或 inspector>; viewport=<设备/视口/scale>; geometry=<测量>
 ```
 
-需要视觉验收但证据缺失时，把 surface/environment/unit 填为 `UNVERIFIED`，`visual_verified: NO`，结论填为 `CODE_ONLY`。没有 UI 或不要求正式视觉验收时使用 `visual_required: NO` 和带证据的 `NOT_REQUIRED`，无需制造视觉清单。
+需要视觉验收但证据缺失时，把 surface/environment/unit 填为 `UNVERIFIED`，`visual_verified: NO`，结论填为 `CODE_ONLY`。没有 UI 时必须使用 `visible_ui=NO`、`visual_required: NO` 和带证据的 `NOT_REQUIRED`；严格模式 UI 迁移不能通过“不要求正式视觉验收”跳过视觉清单。

@@ -1,7 +1,7 @@
 interface:
   display_name: "风险自适应功能迁移"
   short_description: "迁移 Web 与客户端功能并证明行为与 UI 等价"
-  default_prompt: "使用 $migrate-feature 迁移指定 Web 或客户端功能，保持行为与 UI 等价；一比一请求逐项证明源到目标渲染映射，并遵循目标结构。"
+  default_prompt: "使用 $migrate-feature 迁移指定 Web 或客户端功能，保持行为与 UI 等价；一比一请求生成结构化功能矩阵和渲染契约，并完成运行时/视觉验收。"
 
 policy:
   allow_implicit_invocation: true

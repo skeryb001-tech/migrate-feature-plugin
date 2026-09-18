@@ -147,7 +147,7 @@ def run_validator(report: str) -> subprocess.CompletedProcess[str]:
         report_path = Path(directory) / "migration-report.md"
         report_path.write_text(report, encoding="utf-8")
         return subprocess.run(
-            [sys.executable, str(SCRIPT_PATH), str(report_path)],
+            [sys.executable, "-B", str(SCRIPT_PATH), str(report_path)],
             check=False,
             capture_output=True,
             text=True,

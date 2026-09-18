@@ -1,140 +1,107 @@
 # Migrate Feature Marketplace
 
-用于分发 `migrate-feature-plugin` 的 Codex Plugin Marketplace 仓库。
+`migrate-feature-plugin` 是一个 Codex 插件，用于将完整功能迁移到另一个项目、页面或客户端，并保持业务行为、数据契约、交互和必要 UI 等价。
 
-## 功能
+它不是代码复制器，而是一套以目标项目为优先的迁移流程：先追踪真实调用链，再复用目标能力，最后按风险完成验证。
 
-插件内置 `$migrate-feature`，用于将完整 Web 前端、混合客户端或原生客户端功能跨项目、跨页面/视图迁移，并提供：
+面向新用户的推广和快速上手说明见：[PROMOTION.md](PROMOTION.md)。
 
-- `cross-project` / `cross-page` 专项模式分流。
-- `web-frontend` / `hybrid-client` / `native-client` 平台分流。
-- 按风险自动选择日常流程或增强验收，小迁移默认不生成报告。
-- 五步主流程与 C1–C4 四个检查点。
-- 目标项目能力复用、目标规范落盘和文件冲突处理。
-- 按实际影响执行业务逻辑、UI、边界场景和消费者回归。
-- 共享消费者保护、回滚方案和条件式运行时/视觉验收。
-- 冲突扫描、报告生成和报告自动校验脚本。
-- 单一机器规范源维护检查点、迁移模式与平台运行时约束。
-- 仅在 UI 正式验收时要求 Browser、App Window/WebView、模拟器/仿真器或真机的版本、截图、渲染样式和几何对照。
-- 区分完整 `PASS` 与待运行时视觉验收的 `CODE_ONLY`，防止静态证据冒充视觉通过。
+## 快速开始
 
-固定优先级：
-
-1. 迁移后的逻辑、功能、交互和 UI 与源功能一致。
-2. 优先复用目标项目已有实现。
-3. 迁移后的代码规范、目录结构、模块分层、命名和运行时集成以目标项目与平台为准。
-4. 只有符合目标规范且没有冲突时，才参考源目录和文件名。
-
-## 安装
+在 Codex CLI 中运行：
 
 ```bash
-codex plugin marketplace add skeryb001-tech/migrate-feature-plugin
+codex plugin marketplace add skeryb001-tech/migrate-feature-plugin --ref main
 codex plugin add migrate-feature-plugin@migrate-feature-marketplace
 ```
 
-安装后新建 Codex 任务。插件支持自然语言自动触发，例如：
+安装后新建 Codex 任务，并使用 `$migrate-feature`：
 
 ```text
-把 A 项目的图片上传功能迁移到 B 项目或客户端，保持逻辑和 UI 一致。
-```
+使用 $migrate-feature，把源项目的图片上传功能迁移到目标项目。
 
-也可以显式调用 `$migrate-feature`。
-
-## 使用示例
-
-### 跨项目迁移
-
-```text
-使用 $migrate-feature，把 A 项目的图片上传功能迁移到 B 项目。
-
-源项目：/path/to/project-a
+源项目：/path/to/source-project
 源入口：pages/image-upload.vue
-目标项目：/path/to/project-b
+目标项目：/path/to/target-project
 目标入口：pages/image-upload.vue
 
 要求：
-- 逻辑与 UI 一比一迁移
-- 优先复用目标项目已有实现
-- 迁移后代码结构和规范以 B 项目为准
-- 同名文件不得覆盖
+- 保持业务逻辑、状态和交互等价
+- 优先复用目标项目已有能力
+- 不覆盖同名文件
 - 不新增依赖
+- 报告改动、验证结果和未验证项
 ```
 
-### 同项目跨页面迁移
+也可以直接描述迁移需求，插件会根据任务内容自动触发。
 
-```text
-使用 $migrate-feature，把当前项目 A 页面中的完整图片编辑功能迁移到 B 页面。
+## 支持范围
 
-项目：/path/to/project
-源页面：pages/page-a.vue
-目标页面：pages/page-b.vue
+迁移模式：
 
-要求：
-- B 页面的逻辑、UI、状态和交互与 A 页面一致
-- 优先复用项目已有组件、composable、store 和请求层
-- 代码按当前项目目录与命名规范组织
-- 保持 A 页面原行为不回归
-- 验证 A→B→A、前进后退、刷新和离开页面后的副作用清理
-```
+- `cross-project`：跨项目迁移。
+- `cross-page`：同项目跨页面或视图迁移。
 
-### 混合客户端迁移
+目标平台：
 
-```text
-使用 $migrate-feature，把 Web 项目的文件上传功能迁移到 Electron/Tauri 客户端。
+- `web-frontend`：Vue、React、Nuxt、Next 等 Web 应用。
+- `hybrid-client`：Electron、Tauri、WebView 等混合客户端。
+- `native-client`：iOS、Android、Flutter、React Native 等原生客户端。
 
-要求：
-- 使用 hybrid-client 平台模式
-- 复用目标 preload/command、IPC/bridge、窗口与权限实现
-- 保持 context isolation、sandbox、CSP 和最小权限
-- 在实际 App Window 中完成截图、computed style 和几何验收
-```
+## 执行原则
 
-### 原生客户端迁移
+1. 明确源入口、目标入口、输入、输出、状态、错误和副作用。
+2. 沿真实调用链追踪到组件、状态、请求层、API、Bridge 或 Repository。
+3. 按“复用 → 最窄适配 → 最小迁入”映射到目标项目。
+4. 根据影响范围验证逻辑、UI、生命周期、共享消费者和运行时行为。
+5. 保留未验证项、残余风险和回滚起点。
 
-```text
-使用 $migrate-feature，把 A 客户端的图片编辑功能迁移到 B 客户端页面。
+源项目保持只读；目标项目已有改动受保护。同名覆盖、未授权依赖或公共契约变更、数据/安全/权限问题和不可逆写入必须先停止并处理。
 
-要求：
-- 使用 native-client 平台模式
-- 复用目标 navigation、view model/reducer、repository 和主题系统
-- 覆盖权限、前后台、进程重建、安全区、键盘和无障碍
-- 在模拟器/仿真器或真机中完成截图、view inspector 和几何验收
-```
+## 验收结果
 
-## 自动化门禁
+- `PASS`：代码和所有必需的运行时/视觉验收均完成。
+- `CODE_ONLY`：代码级证据完成，但必需的运行时或视觉验收待补。
+- `BLOCKED`：存在未解决的冲突、安全、权限、数据或公共契约问题。
+
+静态检查不能替代浏览器、App Window、WebView、模拟器或真机验证。
+
+## 开发与校验
+
+仓库不需要构建产物。提交前运行：
 
 ```bash
-python3 plugins/migrate-feature-plugin/skills/migrate-feature/scripts/scanMigrationConflicts.py \
-  /path/to/source-feature \
-  /path/to/target-root
+python3 -B plugins/migrate-feature-plugin/skills/migrate-feature/scripts/validatePluginMetadata.py
+python3 -B plugins/migrate-feature-plugin/skills/migrate-feature/scripts/validateMigrationSpec.py
+python3 -B plugins/migrate-feature-plugin/skills/migrate-feature/scripts/testScanMigrationConflicts.py
+python3 -B plugins/migrate-feature-plugin/skills/migrate-feature/scripts/testMigrationReportValidator.py
+git diff --check
+```
 
+高风险、跨运行时、共享公共契约或正式“一比一”验收时，再生成并校验增强报告：
+
+```bash
 python3 plugins/migrate-feature-plugin/skills/migrate-feature/scripts/createMigrationReport.py \
-  --mode cross-page \
-  --platform native-client \
-  --source /path/to/source-page \
-  --target /path/to/target-page \
-  --reason "跨原生运行时并要求正式验收" \
+  --mode cross-project \
+  --platform web-frontend \
+  --source /path/to/source \
+  --target /path/to/target \
+  --reason "跨运行时或正式验收" \
   --output /tmp/migration-report.md
-
-python3 plugins/migrate-feature-plugin/skills/migrate-feature/scripts/validateMigrationSpec.py
 
 python3 plugins/migrate-feature-plugin/skills/migrate-feature/scripts/validateMigrationReport.py \
   /tmp/migration-report.md
-
-python3 -B plugins/migrate-feature-plugin/skills/migrate-feature/scripts/validatePluginMetadata.py
-python3 -B plugins/migrate-feature-plugin/skills/migrate-feature/scripts/testScanMigrationConflicts.py
 ```
 
-日常迁移直接执行五步流程，无需运行报告脚本。高风险、跨运行时、共享公共契约或正式一比一验收时才创建增强报告。冲突扫描也只用于实际文件迁入或路径碰撞风险。报告由 `migrationSpec.py` 的单一规范生成；校验器检查 C1–C4、阻断项和条件式运行时/视觉证据：退出码 0 为 `PASS`，1 为失败或 `BLOCKED`，3 为代码证据有效但必需运行时/视觉验收待补的 `CODE_ONLY`。
-
-`validatePluginMetadata.py` 用于检查插件版本、Marketplace 注册和本地路径是否一致；`testScanMigrationConflicts.py` 覆盖冲突扫描器的主要路径冲突分支。两个脚本都使用 Python 标准库，不生成构建产物。
-
-## 目录
+## 目录结构
 
 ```text
-.agents/plugins/marketplace.json
-plugins/migrate-feature-plugin/.codex-plugin/plugin.json
-plugins/migrate-feature-plugin/skills/migrate-feature/
+.agents/plugins/marketplace.json                 # Marketplace 注册
+plugins/migrate-feature-plugin/.codex-plugin/    # 插件清单
+plugins/migrate-feature-plugin/skills/           # Codex skill
+plugins/migrate-feature-plugin/skills/.../references/  # 平台与验收规则
+plugins/migrate-feature-plugin/skills/.../scripts/     # 校验与报告脚本
+PROMOTION.md                                     # 推广与快速上手
 ```
 
 ## 版本
